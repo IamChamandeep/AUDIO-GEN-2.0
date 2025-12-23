@@ -37,8 +37,6 @@ export const AVAILABLE_VOICES: VoicePersona[] = [
   
   // Male Personas
   { id: 'Charon', name: 'Charon', gender: 'Male', style: 'Authoritative, Bold & Strong' },
-  { id: 'Erebus', name: 'Erebus', gender: 'Male', style: 'Deep, Serious & Somber' },
   { id: 'Fenrir', name: 'Fenrir', gender: 'Male', style: 'Dramatic, Theatrical Narrator' },
-  { id: 'Icarus', name: 'Icarus', gender: 'Male', style: 'Light, Friendly & Youthful' },
   { id: 'Kore', name: 'Kore', gender: 'Male', style: 'Neutral, Professional & Clear' },
 ];

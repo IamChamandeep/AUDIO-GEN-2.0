@@ -53,19 +53,32 @@ export const generateStorySpeech = async (
   
   const ai = new GoogleGenAI({ apiKey });
 
-  const expLevels = ["monotone", "very low emotion", "subtle", "natural", "engaging", "expressive", "emotional", "very emotional", "highly dramatic", "extremely passionate", "maximum intensity"];
-  const expLevel = expLevels[Math.floor(expressiveness)] || "expressive";
+  // Map 0-10 expressiveness to descriptive terms for the AI
+  const expLevels = [
+    "monotone and flat", 
+    "very low emotion", 
+    "subtle", 
+    "natural", 
+    "engaging", 
+    "expressive", 
+    "emotional", 
+    "highly dramatic", 
+    "extremely theatrical", 
+    "intense and passionate", 
+    "maximum intensity"
+  ];
+  const emotionHint = expLevels[Math.floor(expressiveness)] || "expressive";
 
   const validVoices = ['Puck', 'Charon', 'Kore', 'Fenrir', 'Zephyr', 'Aoede', 'Leda'];
   const safeVoice = validVoices.includes(voiceName) ? voiceName : 'Kore';
 
   for (let chunkIdx = 0; chunkIdx < textChunks.length; chunkIdx++) {
     const chunk = textChunks[chunkIdx];
-    // Slightly more descriptive prompt to help the model maintain context
-    const promptText = `Narrate clearly: ${chunk}`;
+    // We explicitly tell the AI the tone to help it adjust the TTS output
+    const promptText = `Narrate this with a ${emotionHint} tone: ${chunk}`;
 
     let attempts = 0;
-    const maxAttempts = 10; // Increased retries for better stability
+    const maxAttempts = 10; 
     let baseDelay = 3500;
 
     while (attempts < maxAttempts) {
@@ -97,7 +110,6 @@ export const generateStorySpeech = async (
           if (candidate?.finishReason === 'SAFETY') {
             throw new Error(`Safety Filter Blocked Content.`);
           }
-          // This error will now be caught and retried
           throw new Error("Empty audio response");
         }
 
@@ -109,7 +121,8 @@ export const generateStorySpeech = async (
           onProgress(((chunkIdx + 1) / textChunks.length) * 100);
         }
 
-        await sleep(1200); 
+        // Delay to respect rate limits
+        await sleep(1500); 
         break; 
 
       } catch (error: any) {
@@ -129,7 +142,6 @@ export const generateStorySpeech = async (
 
         if (errorMsg.toLowerCase().includes('safety')) throw error;
 
-        // Added 'empty audio' to the transient error list
         const isTransient = errorMsg.toLowerCase().includes('xhr') || 
                             errorMsg.toLowerCase().includes('rpc') ||
                             errorMsg.toLowerCase().includes('network') ||
@@ -148,8 +160,7 @@ export const generateStorySpeech = async (
             ? (35000 + (Math.random() * 15000)) 
             : (baseDelay * Math.pow(1.6, attempts - 1)) + (Math.random() * 1000);
           
-          // If it's an empty response, wait a bit longer to let the service recover
-          if (isEmpty) waitTime += 2000;
+          if (isEmpty) waitTime += 3000;
 
           console.warn(`Attempt ${attempts} failed: ${errorMsg}. Retrying in ${Math.round(waitTime/1000)}s...`);
           await sleep(waitTime);

@@ -26,7 +26,7 @@ const ScriptGenerator: React.FC = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [overallProgress, setOverallProgress] = useState(0);
-  const [isPreviewLoading, setIsPreviewLoading] = useState(false);
+  const [previewingVoiceId, setPreviewingVoiceId] = useState<string | null>(null);
   const [currentlyPlayingId, setCurrentlyPlayingId] = useState<number | null>(null);
 
   const [showZipModal, setShowZipModal] = useState(false);
@@ -47,22 +47,30 @@ const ScriptGenerator: React.FC = () => {
     }
   };
 
-  const playPreview = async () => {
+  const playVoicePreview = async (voiceId: string, e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent selecting the card if just clicking play
     initAudio();
-    if (isPreviewLoading) return;
-    setIsPreviewLoading(true);
+    if (previewingVoiceId) return;
+    
+    setPreviewingVoiceId(voiceId);
+    const voice = AVAILABLE_VOICES.find(v => v.id === voiceId);
+    const personaName = voice?.name || "Artist";
+    const testScript = voice?.gender === 'Male' 
+      ? `नमस्ते, मैं ${personaName} हूँ। आपकी कहानी सुनाने के लिए तैयार हूँ।` 
+      : `नमस्ते, मैं ${personaName} हूँ। मैं आपकी कहानी को आवाज़ देने के लिए उत्साहित हूँ।`;
+
     try {
-      const buffer = await generateStorySpeech("नमस्ते, वॉइस टेस्ट।", audioContextRef.current!, selectedVoice, speed, expressiveness);
+      const buffer = await generateStorySpeech(testScript, audioContextRef.current!, voiceId, speed, expressiveness);
       stopGlobalAudio();
       const source = audioContextRef.current!.createBufferSource();
       source.buffer = buffer;
       source.connect(audioContextRef.current!.destination);
+      source.onended = () => setPreviewingVoiceId(null);
       source.start();
       sourceNodeRef.current = source;
     } catch (err: any) {
       alert("Preview Error: " + (err.message || "Unknown error"));
-    } finally {
-      setIsPreviewLoading(false);
+      setPreviewingVoiceId(null);
     }
   };
 
@@ -150,7 +158,6 @@ const ScriptGenerator: React.FC = () => {
       setParts([...updatedParts]);
       updateOverallProgress(updatedParts);
       
-      // Increased cooldown between major segments
       if (i < updatedParts.length - 1) await new Promise(r => setTimeout(r, 6000));
     }
     setIsProcessing(false);
@@ -254,9 +261,8 @@ const ScriptGenerator: React.FC = () => {
 
   return (
     <div className="max-w-[1300px] mx-auto px-6 pb-40">
-      {/* Liquid Modal */}
       {(showZipModal || showMergeModal) && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-3xl">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-3xl text-center">
           <div className="glass-panel p-10 rounded-[2.5rem] w-full max-w-lg shadow-2xl border border-white/40">
             <h4 className="text-3xl font-black text-white uppercase mb-8 tracking-tighter text-glow-orange">PREPARE EXPORT</h4>
             <div className="space-y-8">
@@ -264,7 +270,7 @@ const ScriptGenerator: React.FC = () => {
                 type="text" 
                 value={showZipModal ? zipFilename : mergeFilename}
                 onChange={(e) => showZipModal ? setZipFilename(e.target.value) : setMergeFilename(e.target.value)}
-                className="bg-white/10 border border-white/30 w-full px-6 py-4 text-white rounded-2xl outline-none focus:border-brand-orange transition-all text-xl font-bold"
+                className="bg-white/10 border border-white/30 w-full px-6 py-4 text-white rounded-2xl outline-none focus:border-brand-orange transition-all text-xl font-bold text-center"
               />
               <div className="flex gap-4">
                 <button onClick={() => {setShowZipModal(false); setShowMergeModal(false);}} className="flex-1 py-4 btn-liquid text-white font-black rounded-2xl text-[12px] uppercase tracking-widest">CANCEL</button>
@@ -289,7 +295,7 @@ const ScriptGenerator: React.FC = () => {
               value={script}
               onChange={(e) => setScript(e.target.value)}
               placeholder="PASTE YOUR STORY SCRIPT HERE..."
-              className="w-full h-[450px] bg-transparent border-none p-0 text-white/80 focus:outline-none transition-all resize-none text-base leading-relaxed"
+              className="w-full h-[450px] bg-transparent border-none p-0 text-white/80 focus:outline-none transition-all resize-none text-base leading-relaxed font-['Noto_Serif_Devanagari']"
             />
             
             <div className="mt-10 flex items-center gap-6">
@@ -309,27 +315,60 @@ const ScriptGenerator: React.FC = () => {
           <div className="glass-panel rounded-[2.5rem] p-10 border-brand-violet/20">
             <h3 className="text-2xl font-black text-brand-violet uppercase tracking-[0.3em] mb-10 text-center text-glow-violet">STUDIO SETUP</h3>
             <div className="space-y-8">
-              <div className="space-y-3">
-                <div className="flex justify-between text-[11px] font-black uppercase text-white mb-1">
-                  <span>VOICE ARTIST</span>
-                  <button onClick={playPreview} className="text-brand-cyan hover:text-white">TEST VOICE</button>
+              
+              <div className="space-y-4">
+                <div className="flex justify-between items-center text-[11px] font-black uppercase text-white mb-2">
+                  <span>VOICE ARTISTS GALLERY</span>
+                  <span className="text-white/40">{AVAILABLE_VOICES.length} AVAILABLE</span>
                 </div>
-                <select value={selectedVoice} onChange={(e) => setSelectedVoice(e.target.value)} className="w-full bg-white/10 border border-white/20 p-5 rounded-xl text-white font-black appearance-none outline-none">
-                  <optgroup label="FEMALE" className="bg-zinc-900">
-                    {AVAILABLE_VOICES.filter(v=>v.gender==='Female').map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
-                  </optgroup>
-                  <optgroup label="MALE" className="bg-zinc-900">
-                    {AVAILABLE_VOICES.filter(v=>v.gender==='Male').map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
-                  </optgroup>
-                </select>
+                
+                <div className="max-h-[400px] overflow-y-auto pr-2 space-y-3 custom-scrollbar">
+                  {AVAILABLE_VOICES.map((voice) => (
+                    <div 
+                      key={voice.id}
+                      onClick={() => setSelectedVoice(voice.id)}
+                      className={`group relative p-4 rounded-2xl border transition-all cursor-pointer ${
+                        selectedVoice === voice.id 
+                        ? 'bg-white/15 border-brand-cyan shadow-[0_0_20px_rgba(0,240,255,0.2)]' 
+                        : 'bg-white/5 border-white/10 hover:border-white/30'
+                      }`}
+                    >
+                      <div className="flex justify-between items-center">
+                        <div className="flex flex-col">
+                          <span className={`text-[13px] font-black uppercase tracking-wider ${selectedVoice === voice.id ? 'text-brand-cyan' : 'text-white'}`}>
+                            {voice.name}
+                            {selectedVoice === voice.id && <span className="ml-2 text-[8px] bg-brand-cyan text-black px-2 py-0.5 rounded-full">ACTIVE</span>}
+                          </span>
+                          <span className="text-[9px] font-bold text-white/40 uppercase tracking-widest mt-1">{voice.gender} • {voice.style}</span>
+                        </div>
+                        
+                        <button 
+                          onClick={(e) => playVoicePreview(voice.id, e)}
+                          disabled={previewingVoiceId !== null}
+                          className={`w-10 h-10 rounded-full flex items-center justify-center transition-all border ${
+                            previewingVoiceId === voice.id 
+                            ? 'bg-brand-orange border-brand-orange animate-pulse' 
+                            : 'bg-white/10 border-white/20 hover:bg-white hover:text-black'
+                          }`}
+                        >
+                          {previewingVoiceId === voice.id ? (
+                            <div className="w-4 h-4 border-2 border-black/20 border-t-black rounded-full animate-spin"></div>
+                          ) : (
+                            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z"/></svg>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
 
-              <div className="space-y-3">
+              <div className="space-y-3 pt-4 border-t border-white/10">
                 <div className="flex justify-between text-[11px] font-black uppercase text-white mb-1">
-                  <span>SEGMENTS</span>
+                  <span>TARGET SEGMENTS</span>
                   <span className="text-brand-orange">{desiredParts > 0 ? desiredParts : 'AUTO'}</span>
                 </div>
-                <input type="number" min="0" value={desiredParts || ''} onChange={(e) => setDesiredParts(Math.max(0, parseInt(e.target.value) || 0))} placeholder="0 = AUTO" className="w-full bg-white/10 border border-white/20 p-5 rounded-xl text-white font-black outline-none" />
+                <input type="number" min="0" value={desiredParts || ''} onChange={(e) => setDesiredParts(Math.max(0, parseInt(e.target.value) || 0))} placeholder="0 = AUTO" className="w-full bg-white/10 border border-white/20 p-5 rounded-xl text-white font-black outline-none text-center" />
               </div>
 
               <div className="space-y-5">
@@ -431,7 +470,13 @@ const ScriptGenerator: React.FC = () => {
           </div>
         </div>
       )}
-      <style>{`@keyframes shimmer { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }`}</style>
+      <style>{`
+        @keyframes shimmer { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: rgba(255, 255, 255, 0.05); border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.2); border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.3); }
+      `}</style>
     </div>
   );
 };
