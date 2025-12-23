@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 
 const Header: React.FC = () => {
   const [isConnected, setIsConnected] = useState<boolean>(false);
+  const [showStatus, setShowStatus] = useState<boolean>(false);
 
   const checkStatus = async () => {
     const aiStudio = (window as any).aistudio;
@@ -43,18 +44,15 @@ const Header: React.FC = () => {
         console.error("Connection Error:", e);
       }
     } else {
-      // If bridge is missing (e.g. Vercel), provide feedback
-      if (process.env.API_KEY) {
-        alert("System is currently active using the deployment's Environment Key (Free Quota). No further connection needed.");
-      } else {
-        alert("AI Studio bridge not detected. To use this app on Vercel, please add your 'API_KEY' to the Vercel Environment Variables dashboard.");
-      }
+      // If bridge is missing (e.g. Vercel), provide a non-intrusive status toggle
+      setShowStatus(true);
+      setTimeout(() => setShowStatus(false), 5000);
     }
   };
 
   return (
     <header className="fixed top-0 left-0 right-0 z-[60] py-6 px-4 md:px-10">
-      <div className="max-w-[1500px] mx-auto flex items-center justify-between glass-panel px-6 md:px-12 py-5 rounded-[1.5rem] border-white/20">
+      <div className="max-w-[1500px] mx-auto flex items-center justify-between glass-panel px-6 md:px-12 py-5 rounded-[1.5rem] border-white/20 relative">
         <div className="flex items-center gap-4 md:gap-6">
           <div className="w-10 h-10 bg-white text-black rounded-xl flex items-center justify-center font-black italic text-xl shadow-2xl">
             C
@@ -68,11 +66,21 @@ const Header: React.FC = () => {
         </div>
         
         <div className="flex items-center gap-4 md:gap-12">
+          {showStatus && (
+            <div className="absolute top-[120%] right-0 mt-2 glass-panel p-4 rounded-2xl border-brand-orange/40 bg-brand-orange/10 animate-in fade-in slide-in-from-top-2">
+              <p className="text-[10px] font-black text-white uppercase tracking-widest leading-relaxed">
+                {isConnected 
+                  ? "SYSTEM CONNECTED VIA VERCEL API_KEY" 
+                  : "BRIDGE NOT DETECTED. PLEASE ENSURE API_KEY IS SET IN VERCEL DASHBOARD."}
+              </p>
+            </div>
+          )}
+
           <button 
             onClick={handleConnect}
             className={`group text-[9px] font-black uppercase tracking-[0.2em] px-4 md:px-6 py-2.5 rounded-full border transition-all flex items-center gap-2 md:gap-3 cursor-pointer ${
               isConnected 
-              ? 'border-brand-cyan/40 text-brand-cyan bg-brand-cyan/5 hover:bg-brand-cyan/10' 
+              ? 'border-brand-cyan/40 text-brand-cyan bg-brand-cyan/5 hover:bg-brand-cyan/10 shadow-[0_0_15px_rgba(0,240,255,0.1)]' 
               : 'border-brand-orange text-brand-orange bg-brand-orange/5 hover:bg-brand-orange hover:text-black animate-pulse'
             }`}
           >

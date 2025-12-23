@@ -35,10 +35,10 @@ const ScriptGenerator: React.FC = () => {
   const [showMergeModal, setShowMergeModal] = useState(false);
   const [mergeFilename, setMergeFilename] = useState('full_story');
 
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const sourceNodeRef = useRef<AudioBufferSourceNode | null>(null);
 
-  // Poll for connection status to keep UI in sync
   useEffect(() => {
     const checkConnection = async () => {
       const aiStudio = (window as any).aistudio;
@@ -62,6 +62,22 @@ const ScriptGenerator: React.FC = () => {
     if (!audioContextRef.current) {
       audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
     }
+  };
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const content = event.target?.result;
+      if (typeof content === 'string') {
+        setScript(content);
+        // Clear parts if script changes significantly
+        setParts([]);
+      }
+    };
+    reader.readAsText(file);
   };
 
   const playVoicePreview = async (voiceId: string, e: React.MouseEvent) => {
@@ -139,7 +155,9 @@ const ScriptGenerator: React.FC = () => {
     if (aiStudio && typeof aiStudio.openSelectKey === 'function') {
       await aiStudio.openSelectKey();
     } else {
-      alert("To activate on Vercel, set your API_KEY in the deployment settings.");
+      // Direct call to setup or just let the Header handle it
+      const headerBtn = document.querySelector('header button') as HTMLButtonElement;
+      headerBtn?.click();
     }
   };
 
@@ -287,6 +305,14 @@ const ScriptGenerator: React.FC = () => {
 
   return (
     <div className="max-w-[1300px] mx-auto px-6 pb-40">
+      <input 
+        type="file" 
+        ref={fileInputRef} 
+        onChange={handleFileUpload} 
+        className="hidden" 
+        accept=".txt,.doc,.docx"
+      />
+
       {(showZipModal || showMergeModal) && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-3xl text-center">
           <div className="glass-panel p-10 rounded-[2.5rem] w-full max-w-lg shadow-2xl border border-white/40">
@@ -323,6 +349,13 @@ const ScriptGenerator: React.FC = () => {
             <div className="flex justify-between items-center mb-8">
               <h3 className="text-2xl md:text-3xl font-black text-brand-cyan uppercase tracking-[0.2em] flex items-center gap-4 text-glow-cyan">STORY SCRIPT</h3>
               <div className="flex items-center gap-4">
+                 <button 
+                  onClick={() => fileInputRef.current?.click()}
+                  className="hidden md:flex items-center gap-2 text-[10px] font-black text-white/40 uppercase tracking-widest hover:text-brand-cyan transition-colors"
+                 >
+                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+                   IMPORT FROM DRIVE/DEVICE
+                 </button>
                  <span className="text-[10px] md:text-[12px] font-black text-white uppercase tracking-widest bg-brand-cyan/20 px-4 md:px-5 py-2 rounded-full border border-brand-cyan/40 backdrop-blur-md">{totalWordCount.toLocaleString()} WORDS</span>
               </div>
             </div>
@@ -417,12 +450,21 @@ const ScriptGenerator: React.FC = () => {
                 <input type="range" min="0.5" max="2.0" step="0.1" value={speed} onChange={(e) => setSpeed(parseFloat(e.target.value))} className="w-full" />
               </div>
 
-              {parts.length > 0 && (
-                <div className="pt-8 border-t border-white/10 space-y-4">
-                  <button onClick={() => setShowZipModal(true)} disabled={!parts.some(p => p.status === 'done')} className="w-full py-4 btn-liquid text-white font-black text-[11px] uppercase tracking-widest rounded-xl disabled:opacity-30 cursor-pointer">BATCH ZIP</button>
-                  <button onClick={() => setShowMergeModal(true)} disabled={!parts.some(p => p.status === 'done')} className="w-full py-4 btn-primary text-black font-black text-[11px] uppercase tracking-widest rounded-xl disabled:opacity-30 cursor-pointer">MASTER EXPORT</button>
-                </div>
-              )}
+              <div className="pt-8 border-t border-white/10 space-y-4">
+                <button 
+                  onClick={() => fileInputRef.current?.click()}
+                  className="w-full py-4 glass-panel text-brand-cyan font-black text-[11px] uppercase tracking-widest rounded-xl hover:bg-brand-cyan/10 transition-all border-brand-cyan/30 flex items-center justify-center gap-3"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+                  SYNC CLOUD DRIVE
+                </button>
+                {parts.length > 0 && (
+                  <>
+                    <button onClick={() => setShowZipModal(true)} disabled={!parts.some(p => p.status === 'done')} className="w-full py-4 btn-liquid text-white font-black text-[11px] uppercase tracking-widest rounded-xl disabled:opacity-30 cursor-pointer">BATCH ZIP</button>
+                    <button onClick={() => setShowMergeModal(true)} disabled={!parts.some(p => p.status === 'done')} className="w-full py-4 btn-primary text-black font-black text-[11px] uppercase tracking-widest rounded-xl disabled:opacity-30 cursor-pointer">MASTER EXPORT</button>
+                  </>
+                )}
+              </div>
             </div>
           </div>
 
