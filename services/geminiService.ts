@@ -1,4 +1,3 @@
-
 import { GoogleGenAI, Modality } from "@google/genai";
 import { decode, decodeAudioData, mergeAudioBuffers } from "./audioUtils";
 
@@ -33,7 +32,7 @@ const sleep = (ms: number) => {
 };
 
 /**
- * Generates audio using the current API key with highly resilient retry logic.
+ * Generates audio using the latest available API key with resilient retry logic.
  */
 export const generateStorySpeech = async (
   text: string, 
@@ -43,18 +42,23 @@ export const generateStorySpeech = async (
   expressiveness: number = 5,
   onProgress?: (progress: number) => void
 ) => {
-  // Always verify the API key is available from the context before proceeding.
-  if (!process.env.API_KEY) {
+  // Always fetch the latest key from the environment/bridge
+  const apiKey = process.env.API_KEY;
+  if (!apiKey) {
+    // If the key is missing, we may need to prompt for re-authentication
+    const aiStudio = (window as any).aistudio;
+    if (aiStudio) {
+      await aiStudio.openSelectKey();
+    }
     throw new Error("API Key is missing. Please authenticate via the Project Gate.");
   }
 
   const textChunks = chunkText(text, 400); 
   const audioBuffers: AudioBuffer[] = [];
   
-  // Create a new instance right before the call as per instructions to ensure up-to-date key usage.
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  // Create a fresh instance for every session to pick up bridge updates
+  const ai = new GoogleGenAI({ apiKey });
 
-  // Map 0-10 expressiveness to descriptive terms for the AI
   const expLevels = [
     "monotone and flat", 
     "very low emotion", 
@@ -93,13 +97,6 @@ export const generateStorySpeech = async (
                 prebuiltVoiceConfig: { voiceName: safeVoice as any },
               },
             },
-            safetySettings: [
-              { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
-              { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_NONE' },
-              { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_NONE' },
-              { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' },
-              { category: 'HARM_CATEGORY_CIVIC_INTEGRITY', threshold: 'BLOCK_NONE' },
-            ] as any,
           },
         });
 
@@ -128,43 +125,31 @@ export const generateStorySpeech = async (
         attempts++;
         let errorMsg = error.toString();
         
+        // Handle specific "Requested entity was not found" error by triggering key selection
+        if (errorMsg.includes("Requested entity was not found")) {
+           const aiStudio = (window as any).aistudio;
+           if (aiStudio) {
+             await aiStudio.openSelectKey();
+           }
+           throw new Error("Authentication stale. Please select your project again.");
+        }
+
         if (error.message) {
           errorMsg = error.message;
         }
 
-        // Catch specific "entity not found" to reset UI in calling component
-        if (errorMsg.includes("Requested entity was not found")) {
-          throw new Error("Requested entity was not found. Please re-select your API key.");
-        }
-
-        if (errorMsg.toLowerCase().includes('safety')) throw error;
-
-        const isTransient = errorMsg.toLowerCase().includes('xhr') || 
-                            errorMsg.toLowerCase().includes('rpc') ||
-                            errorMsg.toLowerCase().includes('network') ||
-                            errorMsg.toLowerCase().includes('fetch') ||
-                            errorMsg.toLowerCase().includes('429') ||
+        const isTransient = errorMsg.toLowerCase().includes('429') || 
                             errorMsg.toLowerCase().includes('quota') ||
-                            errorMsg.toLowerCase().includes('deadline') ||
-                            errorMsg.toLowerCase().includes('internal') ||
-                            errorMsg.toLowerCase().includes('empty audio');
+                            errorMsg.toLowerCase().includes('empty audio') ||
+                            errorMsg.toLowerCase().includes('internal');
 
         if (isTransient && attempts < maxAttempts) {
-          const isQuota = errorMsg.toLowerCase().includes('quota') || errorMsg.toLowerCase().includes('429');
-          const isEmpty = errorMsg.toLowerCase().includes('empty audio');
-          
-          let waitTime = isQuota 
-            ? (35000 + (Math.random() * 15000)) 
-            : (baseDelay * Math.pow(1.6, attempts - 1)) + (Math.random() * 1000);
-          
-          if (isEmpty) waitTime += 3000;
-
-          console.warn(`Attempt ${attempts} failed: ${errorMsg}. Retrying in ${Math.round(waitTime/1000)}s...`);
+          let waitTime = errorMsg.toLowerCase().includes('quota') ? 30000 : 5000;
           await sleep(waitTime);
           continue;
         }
 
-        throw new Error(`Narration failed for segment ${chunkIdx + 1}: ${errorMsg}`);
+        throw new Error(`Narration failed: ${errorMsg}`);
       }
     }
   }

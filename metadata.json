@@ -1,5 +1,5 @@
 {
-  "name": "CHAMANDEEP - Free AI Story Studio",
-  "description": "Professional tool for bulk generating high-quality AI narrations using your standard Google AI Studio free tier quota.",
+  "name": "CHAMANDEEP - FREE Audio Generator",
+  "description": "Professional tool for bulk generating high-quality AI narrations from long scripts using Gemini TTS.",
   "requestFramePermissions": []
 }
