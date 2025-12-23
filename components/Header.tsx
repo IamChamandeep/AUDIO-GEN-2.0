@@ -2,32 +2,29 @@
 import React, { useState, useEffect } from 'react';
 
 const Header: React.FC = () => {
-  const [isConnected, setIsConnected] = useState<boolean>(false);
+  const [hasCustomKey, setHasCustomKey] = useState<boolean>(false);
 
   const checkStatus = async () => {
     const aiStudio = (window as any).aistudio;
     if (aiStudio) {
       const hasKey = await aiStudio.hasSelectedApiKey();
-      setIsConnected(hasKey);
+      setHasCustomKey(hasKey);
     }
   };
 
   useEffect(() => {
     checkStatus();
-    // Poll for status updates frequently as the bridge doesn't emit events
-    const interval = setInterval(checkStatus, 3000);
+    const interval = setInterval(checkStatus, 5000);
     return () => clearInterval(interval);
   }, []);
 
-  const handleConnect = async () => {
+  const handleSwitchAccount = async () => {
     const aiStudio = (window as any).aistudio;
     if (aiStudio) {
       try {
         await aiStudio.openSelectKey();
-        // Optimistically set to connected
-        setIsConnected(true);
       } catch (e) {
-        console.error("Manual Connect Error:", e);
+        console.error("Account Switch Error:", e);
       }
     }
   };
@@ -43,28 +40,24 @@ const Header: React.FC = () => {
             <h1 className="text-sm font-black tracking-[0.4em] text-white uppercase leading-none">
               CHAMANDEEP AI
             </h1>
-            <span className="text-[8px] font-bold text-white/40 uppercase tracking-[0.2em] mt-1.5">Pro-Narration Studio</span>
+            <span className="text-[8px] font-bold text-white/40 uppercase tracking-[0.2em] mt-1.5">Free Studio Mode</span>
           </div>
         </div>
         
         <div className="flex items-center gap-6 md:gap-12">
           <button 
-            onClick={handleConnect}
-            className={`group text-[10px] font-black uppercase tracking-[0.3em] px-6 py-3 rounded-full border transition-all flex items-center gap-3 ${
-              isConnected 
-              ? 'border-brand-cyan/40 text-brand-cyan bg-brand-cyan/5 hover:bg-brand-cyan/10' 
-              : 'border-white text-white bg-white/5 hover:bg-white hover:text-black animate-pulse'
-            }`}
+            onClick={handleSwitchAccount}
+            className="group text-[9px] font-black uppercase tracking-[0.3em] px-5 py-2.5 rounded-full border border-white/10 text-white/60 hover:text-white hover:border-white/30 transition-all flex items-center gap-3 bg-white/5"
           >
-            <span className={`w-2 h-2 rounded-full ${isConnected ? 'bg-brand-cyan shadow-[0_0_10px_#00F0FF]' : 'bg-white shadow-[0_0_10px_#FFF]'}`}></span>
-            {isConnected ? 'GOOGLE CONNECTED' : 'CONNECT GOOGLE ACCOUNT'}
+            <div className={`w-1.5 h-1.5 rounded-full ${hasCustomKey ? 'bg-brand-cyan' : 'bg-white/40'}`}></div>
+            {hasCustomKey ? 'PROJECT LINKED' : 'SWITCH ACCOUNT'}
           </button>
 
           <a 
             href="https://www.instagram.com/iamchamandeep/" 
             target="_blank" 
             rel="noopener noreferrer"
-            className="hidden lg:block text-[11px] font-black uppercase tracking-[0.4em] text-white/60 hover:text-white transition-all border-b-2 border-transparent hover:border-brand-orange pb-0.5"
+            className="hidden lg:block text-[11px] font-black uppercase tracking-[0.4em] text-white/40 hover:text-white transition-all border-b-2 border-transparent hover:border-brand-orange pb-0.5"
           >
             INSTAGRAM
           </a>
