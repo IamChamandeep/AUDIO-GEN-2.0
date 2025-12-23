@@ -16,7 +16,11 @@ interface GeneratedPart {
   currentProgress?: number; 
 }
 
-const ScriptGenerator: React.FC = () => {
+interface ScriptGeneratorProps {
+  onAuthError?: () => void;
+}
+
+const ScriptGenerator: React.FC<ScriptGeneratorProps> = ({ onAuthError }) => {
   const [script, setScript] = useState('');
   const [selectedVoice, setSelectedVoice] = useState(AVAILABLE_VOICES[0].id);
   const [speed, setSpeed] = useState(1.0);
@@ -33,6 +37,8 @@ const ScriptGenerator: React.FC = () => {
   const [zipFilename, setZipFilename] = useState('narrations');
   const [showMergeModal, setShowMergeModal] = useState(false);
   const [mergeFilename, setMergeFilename] = useState('full_story');
+  
+  const [showAuthModal, setShowAuthModal] = useState(false);
 
   const audioContextRef = useRef<AudioContext | null>(null);
   const sourceNodeRef = useRef<AudioBufferSourceNode | null>(null);
@@ -47,17 +53,33 @@ const ScriptGenerator: React.FC = () => {
     }
   };
 
+  const handleApiError = (err: any) => {
+    const errorMsg = err.message || "";
+    if (errorMsg.includes("Requested entity was not found") || errorMsg.includes("API key not valid") || errorMsg.includes("Quota")) {
+      setShowAuthModal(true);
+      onAuthError?.();
+    }
+  };
+
+  const handleConnectAccount = async () => {
+    try {
+      // Fixed: Use optional chaining for window.aistudio to safely handle potentially missing environment object.
+      await window.aistudio?.openSelectKey();
+      setShowAuthModal(false);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   const playVoicePreview = async (voiceId: string, e: React.MouseEvent) => {
-    e.stopPropagation(); // Prevent selecting the card if just clicking play
+    e.stopPropagation();
     initAudio();
     if (previewingVoiceId) return;
     
     setPreviewingVoiceId(voiceId);
     const voice = AVAILABLE_VOICES.find(v => v.id === voiceId);
     const personaName = voice?.name || "Artist";
-    const testScript = voice?.gender === 'Male' 
-      ? `नमस्ते, मैं ${personaName} हूँ। आपकी कहानी सुनाने के लिए तैयार हूँ।` 
-      : `नमस्ते, मैं ${personaName} हूँ। मैं आपकी कहानी को आवाज़ देने के लिए उत्साहित हूँ।`;
+    const testScript = `नमस्ते, मैं ${personaName} हूँ।`;
 
     try {
       const buffer = await generateStorySpeech(testScript, audioContextRef.current!, voiceId, speed, expressiveness);
@@ -69,7 +91,7 @@ const ScriptGenerator: React.FC = () => {
       source.start();
       sourceNodeRef.current = source;
     } catch (err: any) {
-      alert("Preview Error: " + (err.message || "Unknown error"));
+      handleApiError(err);
       setPreviewingVoiceId(null);
     }
   };
@@ -80,7 +102,7 @@ const ScriptGenerator: React.FC = () => {
     const words = trimmedScript.split(/\s+/).filter(Boolean);
     const totalWords = words.length;
     let newPartsList: string[] = [];
-    const targetWordsPerPart = desiredParts > 0 ? Math.ceil(totalWords / desiredParts) : 3000;
+    const targetWordsPerPart = desiredParts > 0 ? Math.ceil(totalWords / desiredParts) : 2500;
     
     let currentChunk: string[] = [];
     for (let i = 0; i < words.length; i++) {
@@ -147,8 +169,8 @@ const ScriptGenerator: React.FC = () => {
         updatedParts[i].audioBuffer = buffer;
         updatedParts[i].status = 'done';
         updatedParts[i].currentProgress = 100;
-        updatedParts[i].error = undefined;
       } catch (err: any) {
+        handleApiError(err);
         updatedParts[i].status = 'error';
         updatedParts[i].error = err.message;
         setIsProcessing(false);
@@ -182,6 +204,7 @@ const ScriptGenerator: React.FC = () => {
       updatedParts[index].status = 'done';
       updatedParts[index].currentProgress = 100;
     } catch (err: any) {
+      handleApiError(err);
       updatedParts[index].status = 'error';
       updatedParts[index].error = err.message;
     }
@@ -261,6 +284,22 @@ const ScriptGenerator: React.FC = () => {
 
   return (
     <div className="max-w-[1300px] mx-auto px-6 pb-40">
+      {/* Auth Error Modal */}
+      {showAuthModal && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/80 backdrop-blur-2xl text-center">
+          <div className="glass-panel p-10 rounded-[2.5rem] w-full max-w-lg shadow-2xl border border-white/40">
+            <h4 className="text-3xl font-black text-white uppercase mb-4 tracking-tighter text-glow-orange">PERSONAL ACCESS</h4>
+            <p className="text-white/60 font-bold mb-8 uppercase tracking-widest text-[10px] leading-relaxed">
+              Your session needs verification or has reached the community limit. Connect your free personal Google account to continue using your private AI Studio quota.
+            </p>
+            <div className="space-y-4">
+              <button onClick={handleConnectAccount} className="w-full py-5 btn-primary text-black font-black uppercase tracking-widest text-[12px] rounded-2xl">CONNECT PERSONAL ACCOUNT</button>
+              <button onClick={() => setShowAuthModal(false)} className="w-full py-4 text-white/40 font-black rounded-2xl text-[10px] uppercase tracking-widest">CONTINUE AS GUEST</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {(showZipModal || showMergeModal) && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-3xl text-center">
           <div className="glass-panel p-10 rounded-[2.5rem] w-full max-w-lg shadow-2xl border border-white/40">
@@ -352,7 +391,7 @@ const ScriptGenerator: React.FC = () => {
                           }`}
                         >
                           {previewingVoiceId === voice.id ? (
-                            <div className="w-4 h-4 border-2 border-black/20 border-t-black rounded-full animate-spin"></div>
+                            <div className="w-4 h-4 border-2 border-brand-cyan/20 border-t-brand-cyan rounded-full animate-spin"></div>
                           ) : (
                             <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z"/></svg>
                           )}
@@ -400,7 +439,7 @@ const ScriptGenerator: React.FC = () => {
                   <div className="h-full bg-gradient-to-r from-brand-orange via-brand-magenta to-brand-violet rounded-full transition-all duration-300" style={{ width: `${overallProgress}%` }}></div>
                </div>
                <p className="mt-4 text-[9px] font-bold text-white/30 uppercase tracking-[0.3em] text-center">
-                 {isProcessing ? 'RESPECTING GOOGLE RATE LIMITS...' : 'COMPLETE'}
+                 {isProcessing ? 'SYNTHESIZING...' : 'COMPLETE'}
                </p>
             </div>
           )}

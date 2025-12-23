@@ -33,7 +33,7 @@ const sleep = (ms: number) => {
 };
 
 /**
- * Generates audio using the default API key with highly resilient retry logic.
+ * Generates audio using the current API key with highly resilient retry logic.
  */
 export const generateStorySpeech = async (
   text: string, 
@@ -43,15 +43,16 @@ export const generateStorySpeech = async (
   expressiveness: number = 5,
   onProgress?: (progress: number) => void
 ) => {
-  const apiKey = process.env.API_KEY;
-  if (!apiKey) {
-    throw new Error("API Key is missing from the environment.");
+  // Always verify the API key is available from the context before proceeding.
+  if (!process.env.API_KEY) {
+    throw new Error("API Key is missing. Please authenticate via the Project Gate.");
   }
 
   const textChunks = chunkText(text, 400); 
   const audioBuffers: AudioBuffer[] = [];
   
-  const ai = new GoogleGenAI({ apiKey });
+  // Create a new instance right before the call as per instructions to ensure up-to-date key usage.
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
   // Map 0-10 expressiveness to descriptive terms for the AI
   const expLevels = [
@@ -74,7 +75,6 @@ export const generateStorySpeech = async (
 
   for (let chunkIdx = 0; chunkIdx < textChunks.length; chunkIdx++) {
     const chunk = textChunks[chunkIdx];
-    // We explicitly tell the AI the tone to help it adjust the TTS output
     const promptText = `Narrate this with a ${emotionHint} tone: ${chunk}`;
 
     let attempts = 0;
@@ -121,7 +121,6 @@ export const generateStorySpeech = async (
           onProgress(((chunkIdx + 1) / textChunks.length) * 100);
         }
 
-        // Delay to respect rate limits
         await sleep(1500); 
         break; 
 
@@ -131,13 +130,11 @@ export const generateStorySpeech = async (
         
         if (error.message) {
           errorMsg = error.message;
-          if (errorMsg.includes('{')) {
-             try {
-               const start = errorMsg.indexOf('{');
-               const parsed = JSON.parse(errorMsg.substring(start));
-               errorMsg = parsed.error?.message || errorMsg;
-             } catch(e) {}
-          }
+        }
+
+        // Catch specific "entity not found" to reset UI in calling component
+        if (errorMsg.includes("Requested entity was not found")) {
+          throw new Error("Requested entity was not found. Please re-select your API key.");
         }
 
         if (errorMsg.toLowerCase().includes('safety')) throw error;
