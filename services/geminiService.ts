@@ -1,9 +1,9 @@
+
 import { GoogleGenAI, Modality } from "@google/genai";
 import { decode, decodeAudioData, mergeAudioBuffers } from "./audioUtils";
 
 /**
- * Splits text into very small chunks (400 chars).
- * Gemini TTS preview models are most stable with small payloads.
+ * Splits text into small chunks to ensure stability with the Gemini TTS model.
  */
 function chunkText(text: string, maxChars: number = 400): string[] {
   const chunks: string[] = [];
@@ -32,7 +32,7 @@ const sleep = (ms: number) => {
 };
 
 /**
- * Generates audio using the latest available API key with resilient retry logic.
+ * Generates audio using a fresh GoogleGenAI instance per call to pick up the latest injected API Key.
  */
 export const generateStorySpeech = async (
   text: string, 
@@ -42,52 +42,40 @@ export const generateStorySpeech = async (
   expressiveness: number = 5,
   onProgress?: (progress: number) => void
 ) => {
-  // Always fetch the latest key from the environment/bridge
+  // Access the injected API KEY directly
   const apiKey = process.env.API_KEY;
+  
   if (!apiKey) {
-    // If the key is missing, we may need to prompt for re-authentication
     const aiStudio = (window as any).aistudio;
     if (aiStudio) {
       await aiStudio.openSelectKey();
     }
-    throw new Error("API Key is missing. Please authenticate via the Project Gate.");
+    throw new Error("API Key is missing. Please connect your Google account via the Project Gate.");
   }
 
+  // Create a new instance right before making the API call as per instructions
+  const ai = new GoogleGenAI({ apiKey });
   const textChunks = chunkText(text, 400); 
   const audioBuffers: AudioBuffer[] = [];
   
-  // Create a fresh instance for every session to pick up bridge updates
-  const ai = new GoogleGenAI({ apiKey });
-
   const expLevels = [
-    "monotone and flat", 
-    "very low emotion", 
-    "subtle", 
-    "natural", 
-    "engaging", 
-    "expressive", 
-    "emotional", 
-    "highly dramatic", 
-    "extremely theatrical", 
-    "intense and passionate", 
-    "maximum intensity"
+    "monotone", "flat", "subtle", "natural", "engaging", 
+    "expressive", "emotional", "dramatic", "theatrical", "intense", "extreme"
   ];
   const emotionHint = expLevels[Math.floor(expressiveness)] || "expressive";
-
   const validVoices = ['Puck', 'Charon', 'Kore', 'Fenrir', 'Zephyr', 'Aoede', 'Leda'];
   const safeVoice = validVoices.includes(voiceName) ? voiceName : 'Kore';
 
   for (let chunkIdx = 0; chunkIdx < textChunks.length; chunkIdx++) {
     const chunk = textChunks[chunkIdx];
-    const promptText = `Narrate this with a ${emotionHint} tone: ${chunk}`;
+    const promptText = `Narrate this story part with a ${emotionHint} tone: ${chunk}`;
 
     let attempts = 0;
-    const maxAttempts = 10; 
-    let baseDelay = 3500;
+    const maxAttempts = 5; 
 
     while (attempts < maxAttempts) {
       try {
-        const result = await ai.models.generateContent({
+        const response = await ai.models.generateContent({
           model: "gemini-2.5-flash-preview-tts",
           contents: [{ parts: [{ text: promptText }] }],
           config: {
@@ -100,14 +88,10 @@ export const generateStorySpeech = async (
           },
         });
 
-        const candidate = result.candidates?.[0];
-        const base64Audio = candidate?.content?.parts?.[0]?.inlineData?.data;
+        const base64Audio = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
 
         if (!base64Audio) {
-          if (candidate?.finishReason === 'SAFETY') {
-            throw new Error(`Safety Filter Blocked Content.`);
-          }
-          throw new Error("Empty audio response");
+          throw new Error("No audio returned from the engine.");
         }
 
         const audioBytes = decode(base64Audio);
@@ -118,42 +102,33 @@ export const generateStorySpeech = async (
           onProgress(((chunkIdx + 1) / textChunks.length) * 100);
         }
 
-        await sleep(1500); 
+        // Small delay between chunks to respect processing cadence
+        await sleep(1000); 
         break; 
 
       } catch (error: any) {
         attempts++;
-        let errorMsg = error.toString();
+        const errorMsg = error.toString();
         
-        // Handle specific "Requested entity was not found" error by triggering key selection
+        // Handle stale auth/entity not found by resetting via the bridge
         if (errorMsg.includes("Requested entity was not found")) {
            const aiStudio = (window as any).aistudio;
            if (aiStudio) {
              await aiStudio.openSelectKey();
            }
-           throw new Error("Authentication stale. Please select your project again.");
+           throw new Error("Authentication stale. Please re-select your account in the popup.");
         }
 
-        if (error.message) {
-          errorMsg = error.message;
+        if (attempts >= maxAttempts) {
+          throw new Error(`Narration failed after ${maxAttempts} attempts: ${errorMsg}`);
         }
-
-        const isTransient = errorMsg.toLowerCase().includes('429') || 
-                            errorMsg.toLowerCase().includes('quota') ||
-                            errorMsg.toLowerCase().includes('empty audio') ||
-                            errorMsg.toLowerCase().includes('internal');
-
-        if (isTransient && attempts < maxAttempts) {
-          let waitTime = errorMsg.toLowerCase().includes('quota') ? 30000 : 5000;
-          await sleep(waitTime);
-          continue;
-        }
-
-        throw new Error(`Narration failed: ${errorMsg}`);
+        
+        // Exponential backoff or constant sleep for transient errors
+        await sleep(attempts * 2000);
       }
     }
   }
 
-  if (audioBuffers.length === 0) throw new Error("No audio generated.");
+  if (audioBuffers.length === 0) throw new Error("Audio generation failed.");
   return audioBuffers.length === 1 ? audioBuffers[0] : mergeAudioBuffers(audioBuffers, audioContext);
 };

@@ -13,13 +13,13 @@ const App: React.FC = () => {
         const hasKey = await aiStudio.hasSelectedApiKey();
         setIsAuthenticated(hasKey);
       } else {
-        // Fallback for non-bridge environments (dev)
+        // Fallback for local development or non-bridge environments
         setIsAuthenticated(true);
       }
     };
-    checkAuth();
     
-    // Check frequently to see if user has authorized via header or elsewhere
+    checkAuth();
+    // Poll for status changes every 2 seconds to catch updates from the bridge/header
     const interval = setInterval(checkAuth, 2000);
     return () => clearInterval(interval);
   }, []);
@@ -29,7 +29,7 @@ const App: React.FC = () => {
     if (aiStudio) {
       try {
         await aiStudio.openSelectKey();
-        // Set authenticated immediately to improve UX and avoid bridge race conditions
+        // Assume success immediately to mitigate race conditions as per instructions
         setIsAuthenticated(true);
       } catch (e) {
         console.error("Auth Error:", e);
@@ -47,66 +47,63 @@ const App: React.FC = () => {
 
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen bg-brand-dark flex flex-col items-center justify-center p-8 relative overflow-hidden">
-        {/* Deep Ambient Background */}
-        <div className="absolute top-[-10%] left-[-10%] w-[800px] h-[800px] bg-brand-orange/5 blur-[150px] rounded-full animate-pulse"></div>
-        <div className="absolute bottom-[-10%] right-[-10%] w-[800px] h-[800px] bg-brand-cyan/5 blur-[150px] rounded-full animate-pulse"></div>
+      <div className="min-h-screen bg-brand-dark flex flex-col items-center justify-center p-6 md:p-12 relative overflow-hidden">
+        {/* Subtle Background Ambience */}
+        <div className="absolute top-[-20%] left-[-10%] w-[1000px] h-[1000px] bg-brand-orange/5 blur-[180px] rounded-full"></div>
+        <div className="absolute bottom-[-20%] right-[-10%] w-[1000px] h-[1000px] bg-brand-cyan/5 blur-[180px] rounded-full"></div>
 
-        <div className="glass-panel p-10 md:p-20 rounded-[4rem] max-w-3xl w-full text-center relative z-10 border-white/20 shadow-[0_50px_100px_rgba(0,0,0,0.8)]">
-          <div className="w-24 h-24 bg-white text-brand-dark rounded-3xl flex items-center justify-center font-black italic text-5xl mx-auto mb-12 shadow-[0_0_60px_rgba(255,255,255,0.2)]">
+        <div className="glass-panel p-10 md:p-24 rounded-[3.5rem] max-w-3xl w-full text-center relative z-10 border-white/10 shadow-[0_50px_100px_rgba(0,0,0,0.9)]">
+          <div className="w-20 h-20 bg-white text-brand-dark rounded-2xl flex items-center justify-center font-black italic text-4xl mx-auto mb-10 shadow-2xl">
             C
           </div>
           
-          <div className="space-y-4 mb-12">
-            <h1 className="text-4xl md:text-5xl font-black text-white uppercase tracking-[0.1em] leading-tight">
-              Project <span className="text-brand-orange">Gate</span> Authentication
+          <div className="mb-12">
+            <h1 className="text-4xl md:text-6xl font-black text-white uppercase tracking-tight mb-4">
+              CHAMANDEEP <span className="text-brand-orange">STUDIO</span>
             </h1>
-            <p className="text-brand-cyan text-xs font-black uppercase tracking-[0.4em]">
-              Mandatory Security Clearance Required
+            <p className="text-brand-cyan text-[11px] md:text-[13px] font-black uppercase tracking-[0.6em] mb-6">
+              Connect to Start Building
             </p>
-          </div>
-
-          <div className="mb-14">
-            <p className="text-white/70 font-medium text-lg leading-relaxed max-w-lg mx-auto">
-              Unlock professional-grade narration by connecting your Google account. 
-              <span className="block mt-2 text-white/40 text-sm">Automated project selection enables free-tier processing with high-fidelity studio models.</span>
+            <div className="w-16 h-1 bg-white/10 mx-auto rounded-full mb-8"></div>
+            <p className="text-white/60 font-medium text-lg leading-relaxed max-w-md mx-auto">
+              Unlock the narration engine by connecting your Google account. Use your free quota to process high-fidelity AI voiceovers automatically.
             </p>
           </div>
           
           <button 
             onClick={handleConnect}
-            className="group relative w-full py-7 bg-white hover:bg-brand-orange text-black font-black uppercase text-xl tracking-[0.2em] rounded-[2rem] transform transition-all hover:scale-[1.03] active:scale-[0.97] mb-10 overflow-hidden shadow-[0_20px_40px_rgba(255,255,255,0.1)]"
+            className="group relative w-full py-6 bg-white hover:bg-brand-orange text-black font-black uppercase text-lg tracking-[0.2em] rounded-3xl transform transition-all hover:scale-[1.02] active:scale-[0.98] mb-10 overflow-hidden shadow-2xl"
           >
-            <span className="relative z-10">Connect via Google Cloud</span>
-            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></div>
+            <span className="relative z-10">Connect with Google Account</span>
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000"></div>
           </button>
 
-          <div className="flex flex-col items-center gap-6">
-            <p className="text-[9px] font-black text-white/20 uppercase tracking-[0.6em]">
-              Requires Google AI Studio access
+          <div className="space-y-6">
+            <p className="text-[10px] font-black text-white/30 uppercase tracking-[0.4em]">
+              Important: You must connect a project before use
             </p>
-            <div className="flex gap-4">
+            <div className="flex justify-center gap-6">
                <a 
                 href="https://ai.google.dev/gemini-api/docs/billing" 
                 target="_blank" 
-                className="text-[10px] font-bold text-white/40 hover:text-brand-cyan transition-colors border border-white/10 px-4 py-2 rounded-full"
+                className="text-[10px] font-bold text-white/40 hover:text-brand-cyan transition-all border-b border-white/10 hover:border-brand-cyan pb-1"
               >
-                Quota Docs
+                Billing & Quota Docs
               </a>
               <a 
                 href="https://aistudio.google.com/" 
                 target="_blank" 
-                className="text-[10px] font-bold text-white/40 hover:text-brand-cyan transition-colors border border-white/10 px-4 py-2 rounded-full"
+                className="text-[10px] font-bold text-white/40 hover:text-brand-cyan transition-all border-b border-white/10 hover:border-brand-cyan pb-1"
               >
-                Go to AI Studio
+                Google AI Studio
               </a>
             </div>
           </div>
         </div>
 
-        <div className="mt-12 text-center relative z-10">
-          <p className="text-[10px] font-black text-white/30 uppercase tracking-[0.5em]">
-            Optimized for Gemini 2.5 Flash-Native Audio
+        <div className="mt-12 text-center opacity-30 relative z-10">
+          <p className="text-[10px] font-black text-white uppercase tracking-[0.8em]">
+            Optimized for High-Fidelity Audio Synthesis
           </p>
         </div>
       </div>
