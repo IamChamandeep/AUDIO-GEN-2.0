@@ -28,6 +28,7 @@ const ScriptGenerator: React.FC = () => {
   const [overallProgress, setOverallProgress] = useState(0);
   const [previewingVoiceId, setPreviewingVoiceId] = useState<string | null>(null);
   const [currentlyPlayingId, setCurrentlyPlayingId] = useState<number | null>(null);
+  const [isConnected, setIsConnected] = useState<boolean>(!!process.env.API_KEY);
 
   const [showZipModal, setShowZipModal] = useState(false);
   const [zipFilename, setZipFilename] = useState('narrations');
@@ -36,6 +37,22 @@ const ScriptGenerator: React.FC = () => {
 
   const audioContextRef = useRef<AudioContext | null>(null);
   const sourceNodeRef = useRef<AudioBufferSourceNode | null>(null);
+
+  // Poll for connection status to keep UI in sync
+  useEffect(() => {
+    const checkConnection = async () => {
+      const aiStudio = (window as any).aistudio;
+      if (aiStudio && typeof aiStudio.hasSelectedApiKey === 'function') {
+        const hasKey = await aiStudio.hasSelectedApiKey();
+        setIsConnected(hasKey);
+      } else if (process.env.API_KEY) {
+        setIsConnected(true);
+      }
+    };
+    checkConnection();
+    const interval = setInterval(checkConnection, 3000);
+    return () => clearInterval(interval);
+  }, []);
 
   const totalWordCount = useMemo(() => {
     return script.trim() === "" ? 0 : script.trim().split(/\s+/).filter(Boolean).length;
@@ -69,7 +86,7 @@ const ScriptGenerator: React.FC = () => {
       source.start();
       sourceNodeRef.current = source;
     } catch (err: any) {
-      alert("Please ensure your Google Account is connected (Check top-right button). Error: " + (err.message || "Unknown error"));
+      alert("System not active. Please ensure you have connected your Google Account or set your API key.");
       setPreviewingVoiceId(null);
     }
   };
@@ -121,6 +138,8 @@ const ScriptGenerator: React.FC = () => {
     const aiStudio = (window as any).aistudio;
     if (aiStudio && typeof aiStudio.openSelectKey === 'function') {
       await aiStudio.openSelectKey();
+    } else {
+      alert("To activate on Vercel, set your API_KEY in the deployment settings.");
     }
   };
 
@@ -288,13 +307,13 @@ const ScriptGenerator: React.FC = () => {
         </div>
       )}
 
-      {!process.env.API_KEY && (
+      {!isConnected && (
         <div className="mb-12 glass-panel border-brand-orange/40 bg-brand-orange/5 p-8 rounded-[2rem] text-center flex flex-col md:flex-row items-center justify-between gap-6 animate-pulse">
           <div className="text-left">
             <h4 className="text-xl font-black text-brand-orange uppercase mb-1">Account Connection Required</h4>
             <p className="text-white/60 text-sm font-bold uppercase tracking-widest">Connect your Google Account to use the narration engine.</p>
           </div>
-          <button onClick={handleConnect} className="px-12 py-5 bg-brand-orange text-black font-black uppercase tracking-[0.2em] rounded-2xl transform transition-all hover:scale-105 active:scale-95 shadow-2xl">Connect Now</button>
+          <button onClick={handleConnect} className="px-12 py-5 bg-brand-orange text-black font-black uppercase tracking-[0.2em] rounded-2xl transform transition-all hover:scale-105 active:scale-95 shadow-2xl cursor-pointer">Connect Now</button>
         </div>
       )}
 
@@ -316,11 +335,11 @@ const ScriptGenerator: React.FC = () => {
             />
             
             <div className="mt-10 flex flex-col md:flex-row items-center gap-6">
-               <button onClick={processScript} className="w-full md:w-auto px-10 py-5 btn-liquid text-white font-black rounded-2xl text-[12px] uppercase tracking-widest">PREPARE {parts.length > 0 ? `(${parts.length})` : ''}</button>
+               <button onClick={processScript} className="w-full md:w-auto px-10 py-5 btn-liquid text-white font-black rounded-2xl text-[12px] uppercase tracking-widest cursor-pointer">PREPARE {parts.length > 0 ? `(${parts.length})` : ''}</button>
                <button 
                 onClick={generateAll} 
                 disabled={parts.length === 0 || isProcessing}
-                className="w-full flex-grow py-5 btn-primary disabled:opacity-30 text-black font-black uppercase rounded-2xl text-[13px] tracking-[0.2em]"
+                className="w-full flex-grow py-5 btn-primary disabled:opacity-30 text-black font-black uppercase rounded-2xl text-[13px] tracking-[0.2em] cursor-pointer"
               >
                 {isProcessing ? 'SYNTHESIZING...' : 'START NARRATION'}
               </button>
@@ -362,7 +381,7 @@ const ScriptGenerator: React.FC = () => {
                         <button 
                           onClick={(e) => playVoicePreview(voice.id, e)}
                           disabled={previewingVoiceId !== null}
-                          className={`w-10 h-10 rounded-full flex items-center justify-center transition-all border ${
+                          className={`w-10 h-10 rounded-full flex items-center justify-center transition-all border cursor-pointer ${
                             previewingVoiceId === voice.id 
                             ? 'bg-brand-orange border-brand-orange animate-pulse' 
                             : 'bg-white/10 border-white/20 hover:bg-white hover:text-black'
@@ -400,8 +419,8 @@ const ScriptGenerator: React.FC = () => {
 
               {parts.length > 0 && (
                 <div className="pt-8 border-t border-white/10 space-y-4">
-                  <button onClick={() => setShowZipModal(true)} disabled={!parts.some(p => p.status === 'done')} className="w-full py-4 btn-liquid text-white font-black text-[11px] uppercase tracking-widest rounded-xl disabled:opacity-30">BATCH ZIP</button>
-                  <button onClick={() => setShowMergeModal(true)} disabled={!parts.some(p => p.status === 'done')} className="w-full py-4 btn-primary text-black font-black text-[11px] uppercase tracking-widest rounded-xl disabled:opacity-30">MASTER EXPORT</button>
+                  <button onClick={() => setShowZipModal(true)} disabled={!parts.some(p => p.status === 'done')} className="w-full py-4 btn-liquid text-white font-black text-[11px] uppercase tracking-widest rounded-xl disabled:opacity-30 cursor-pointer">BATCH ZIP</button>
+                  <button onClick={() => setShowMergeModal(true)} disabled={!parts.some(p => p.status === 'done')} className="w-full py-4 btn-primary text-black font-black text-[11px] uppercase tracking-widest rounded-xl disabled:opacity-30 cursor-pointer">MASTER EXPORT</button>
                 </div>
               )}
             </div>
@@ -438,16 +457,16 @@ const ScriptGenerator: React.FC = () => {
                   <div className="flex gap-3">
                     {p.status === 'done' && (
                       <>
-                        <button onClick={() => togglePlayPart(p)} className={`w-12 h-12 rounded-full flex items-center justify-center transition-all ${currentlyPlayingId === p.id ? 'bg-brand-cyan text-black' : 'bg-white text-black'}`}>
+                        <button onClick={() => togglePlayPart(p)} className={`w-12 h-12 rounded-full flex items-center justify-center transition-all cursor-pointer ${currentlyPlayingId === p.id ? 'bg-brand-cyan text-black' : 'bg-white text-black'}`}>
                           {currentlyPlayingId === p.id ? <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/></svg> : <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20"><path d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z"/></svg>}
                         </button>
-                        <button onClick={() => downloadPart(p)} className="w-12 h-12 bg-white/10 text-white rounded-full flex items-center justify-center border border-white/20 hover:bg-white/20">
+                        <button onClick={() => downloadPart(p)} className="w-12 h-12 bg-white/10 text-white rounded-full flex items-center justify-center border border-white/20 hover:bg-white/20 cursor-pointer">
                           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
                         </button>
                       </>
                     )}
                     {p.status === 'error' && (
-                      <button onClick={() => retryPart(idx)} className="w-12 h-12 bg-red-500/20 text-red-500 border border-red-500/50 rounded-full flex items-center justify-center hover:bg-red-500 hover:text-white transition-all shadow-lg">
+                      <button onClick={() => retryPart(idx)} className="w-12 h-12 bg-red-500/20 text-red-500 border border-red-500/50 rounded-full flex items-center justify-center hover:bg-red-500 hover:text-white transition-all shadow-lg cursor-pointer">
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
                       </button>
                     )}
@@ -481,7 +500,7 @@ const ScriptGenerator: React.FC = () => {
                     <p className="text-[9px] font-black text-red-500 uppercase mb-1">ERROR:</p>
                     <p className="text-[10px] font-bold text-red-400 leading-tight mb-3">{p.error}</p>
                     {p.error.includes("Authentication") && (
-                       <button onClick={handleConnect} className="w-full py-2 bg-brand-orange text-black text-[9px] font-black uppercase rounded-lg">Reconnect Now</button>
+                       <button onClick={handleConnect} className="w-full py-2 bg-brand-orange text-black text-[9px] font-black uppercase rounded-lg cursor-pointer">Reconnect Now</button>
                     )}
                   </div>
                 )}

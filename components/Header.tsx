@@ -6,38 +6,49 @@ const Header: React.FC = () => {
 
   const checkStatus = async () => {
     const aiStudio = (window as any).aistudio;
+    // 1. Check bridge if it exists
     if (aiStudio && typeof aiStudio.hasSelectedApiKey === 'function') {
       try {
         const hasKey = await aiStudio.hasSelectedApiKey();
         setIsConnected(hasKey);
+        return;
       } catch (e) {
-        console.warn("Status check failed", e);
+        console.warn("Bridge status check failed", e);
       }
+    }
+    
+    // 2. Fallback: If no bridge, check if environment key exists (Vercel/Local)
+    if (process.env.API_KEY && process.env.API_KEY !== "") {
+      setIsConnected(true);
+    } else {
+      setIsConnected(false);
     }
   };
 
   useEffect(() => {
     checkStatus();
-    // Frequent polling to catch bridge state changes
-    const interval = setInterval(checkStatus, 2000);
+    const interval = setInterval(checkStatus, 3000);
     return () => clearInterval(interval);
   }, []);
 
   const handleConnect = async () => {
     const aiStudio = (window as any).aistudio;
+    
+    // If bridge exists, use it
     if (aiStudio && typeof aiStudio.openSelectKey === 'function') {
       try {
         await aiStudio.openSelectKey();
-        // Optimistically set connected to handle the bridge race condition
         setIsConnected(true);
       } catch (e) {
         console.error("Connection Error:", e);
-        alert("Unable to open account selector. Please ensure you are logged in.");
       }
     } else {
-      console.warn("AI Studio bridge not detected.");
-      // In dev mode or without bridge, we might just stay "connected" if API_KEY exists
-      if (process.env.API_KEY) setIsConnected(true);
+      // If bridge is missing (e.g. Vercel), provide feedback
+      if (process.env.API_KEY) {
+        alert("System is currently active using the deployment's Environment Key (Free Quota). No further connection needed.");
+      } else {
+        alert("AI Studio bridge not detected. To use this app on Vercel, please add your 'API_KEY' to the Vercel Environment Variables dashboard.");
+      }
     }
   };
 
@@ -59,15 +70,15 @@ const Header: React.FC = () => {
         <div className="flex items-center gap-4 md:gap-12">
           <button 
             onClick={handleConnect}
-            className={`group text-[9px] font-black uppercase tracking-[0.2em] px-4 md:px-6 py-2.5 rounded-full border transition-all flex items-center gap-2 md:gap-3 ${
+            className={`group text-[9px] font-black uppercase tracking-[0.2em] px-4 md:px-6 py-2.5 rounded-full border transition-all flex items-center gap-2 md:gap-3 cursor-pointer ${
               isConnected 
               ? 'border-brand-cyan/40 text-brand-cyan bg-brand-cyan/5 hover:bg-brand-cyan/10' 
               : 'border-brand-orange text-brand-orange bg-brand-orange/5 hover:bg-brand-orange hover:text-black animate-pulse'
             }`}
           >
             <div className={`w-1.5 h-1.5 md:w-2 md:h-2 rounded-full ${isConnected ? 'bg-brand-cyan shadow-[0_0_10px_#00F0FF]' : 'bg-brand-orange shadow-[0_0_10px_#FF5C00]'}`}></div>
-            <span className="hidden xs:inline">{isConnected ? 'GOOGLE CONNECTED' : 'CONNECT ACCOUNT'}</span>
-            <span className="xs:hidden">{isConnected ? 'CONNECTED' : 'CONNECT'}</span>
+            <span className="hidden xs:inline">{isConnected ? 'SYSTEM ACTIVE' : 'CONNECT ACCOUNT'}</span>
+            <span className="xs:hidden">{isConnected ? 'ACTIVE' : 'CONNECT'}</span>
           </button>
 
           <a 
