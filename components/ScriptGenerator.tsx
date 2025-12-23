@@ -17,7 +17,7 @@ interface GeneratedPart {
 }
 
 const ScriptGenerator: React.FC = () => {
-  const defaultStory = 'रात के तीन बजे थे। पूरी दुनिया सो रही थी, लेकिन चमनदीप की आँखों में नींद नहीं थी। वह अपनी अगली बड़ी कहानी की तलाश में था, एक ऐसी कहानी जो समय की सीमाओं को लांघ सके। अचानक, उसके कमरे के सन्नाटे को एक पुरानी किताब के पन्नों के पलटने की आवाज़ ने तोड़ा... वह किताब जो उसने बरसों पहले एक सुनसान पुस्तकालय के कोने में छोड़ दी थी।';
+  const defaultStory = 'रात के तीन बजे थे। अर्जुन की आँखों में नींद नहीं थी। वह एक नई कहानी की तलाश में था। अचानक किताब के पन्ने पलटने लगे। वह जादुई किताब थी। अर्जुन ने उसे धीरे से छुआ और एक नई दुनिया की शुरुआत हुई।';
   
   const [script, setScript] = useState(defaultStory);
   const [selectedVoice, setSelectedVoice] = useState(AVAILABLE_VOICES[0].id);
@@ -30,7 +30,6 @@ const ScriptGenerator: React.FC = () => {
   const [overallProgress, setOverallProgress] = useState(0);
   const [previewingVoiceId, setPreviewingVoiceId] = useState<string | null>(null);
   const [currentlyPlayingId, setCurrentlyPlayingId] = useState<number | null>(null);
-  const [showConnectModal, setShowConnectModal] = useState(false);
 
   const [showZipModal, setShowZipModal] = useState(false);
   const [zipFilename, setZipFilename] = useState('narrations');
@@ -41,28 +40,6 @@ const ScriptGenerator: React.FC = () => {
   const audioContextRef = useRef<AudioContext | null>(null);
   const sourceNodeRef = useRef<AudioBufferSourceNode | null>(null);
 
-  const checkKeyStatus = async () => {
-    try {
-      // @ts-ignore
-      if (window.aistudio && typeof window.aistudio.hasSelectedApiKey === 'function') {
-        // @ts-ignore
-        const hasKey = await window.aistudio.hasSelectedApiKey();
-        setShowConnectModal(!hasKey);
-      } else {
-        // Bridge not yet available, show modal to prompt connection
-        setShowConnectModal(true);
-      }
-    } catch (e) {
-      setShowConnectModal(true);
-    }
-  };
-
-  useEffect(() => {
-    checkKeyStatus();
-    const interval = setInterval(checkKeyStatus, 5000);
-    return () => clearInterval(interval);
-  }, []);
-
   const totalWordCount = useMemo(() => {
     return script.trim() === "" ? 0 : script.trim().split(/\s+/).filter(Boolean).length;
   }, [script]);
@@ -70,21 +47,6 @@ const ScriptGenerator: React.FC = () => {
   const initAudio = () => {
     if (!audioContextRef.current) {
       audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
-    }
-  };
-
-  const handleConnectCloud = async () => {
-    try {
-      // @ts-ignore
-      if (window.aistudio && typeof window.aistudio.openSelectKey === 'function') {
-        // @ts-ignore
-        await window.aistudio.openSelectKey();
-        setShowConnectModal(false);
-      } else {
-        alert("AI Studio bridge not detected. Please ensure you're using a compatible browser or environment.");
-      }
-    } catch (e) {
-      console.error("Connection failed", e);
     }
   };
 
@@ -127,7 +89,6 @@ const ScriptGenerator: React.FC = () => {
     } catch (err: any) {
       alert(err.message || "Synthesis failed.");
       setPreviewingVoiceId(null);
-      if (err.message.includes("Connection Failed") || err.message.includes("API Connection")) setShowConnectModal(true);
     }
   };
 
@@ -210,7 +171,6 @@ const ScriptGenerator: React.FC = () => {
         updatedParts[i].error = err.message;
         setIsProcessing(false);
         setParts([...updatedParts]);
-        if (err.message.includes("Connection Failed") || err.message.includes("API Connection")) setShowConnectModal(true);
         return; 
       }
       setParts([...updatedParts]);
@@ -242,7 +202,6 @@ const ScriptGenerator: React.FC = () => {
     } catch (err: any) {
       updatedParts[index].status = 'error';
       updatedParts[index].error = err.message;
-      if (err.message.includes("Connection Failed") || err.message.includes("API Connection")) setShowConnectModal(true);
     }
     setParts([...updatedParts]);
     updateOverallProgress(updatedParts);
@@ -319,7 +278,7 @@ const ScriptGenerator: React.FC = () => {
   useEffect(() => () => stopGlobalAudio(), []);
 
   return (
-    <div className={`max-w-[1300px] mx-auto px-6 pb-40 transition-all duration-700 ${showConnectModal ? 'blur-2xl scale-[0.97]' : ''}`}>
+    <div className="max-w-[1300px] mx-auto px-6 pb-40">
       <input 
         type="file" 
         ref={fileInputRef} 
@@ -327,38 +286,6 @@ const ScriptGenerator: React.FC = () => {
         className="hidden" 
         accept=".txt,.doc,.docx"
       />
-
-      {showConnectModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/60 backdrop-blur-sm">
-          <div className="glass-panel p-10 md:p-14 rounded-[3.5rem] w-full max-w-xl shadow-[0_0_120px_rgba(255,92,0,0.25)] border border-brand-orange/40 text-center animate-in fade-in zoom-in-95 duration-500">
-            <div className="w-24 h-24 bg-brand-orange text-black rounded-[2rem] flex items-center justify-center mx-auto mb-12 shadow-[0_20px_40px_rgba(255,92,0,0.4)]">
-              <svg className="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
-            </div>
-            <h4 className="text-4xl md:text-5xl font-black text-white uppercase mb-6 tracking-tighter text-glow-orange leading-tight">MANDATORY CLOUD CONNECT</h4>
-            <p className="text-white/70 font-bold uppercase tracking-widest text-[11px] md:text-[13px] mb-10 leading-relaxed max-w-sm mx-auto">
-              Setup is required to use the free tier narration engine. Connect your account to create a free API project.
-            </p>
-            <div className="space-y-5">
-              <button 
-                onClick={handleConnectCloud} 
-                className="w-full py-6 bg-brand-orange text-black font-black uppercase tracking-[0.2em] rounded-2xl transform transition-all hover:scale-105 active:scale-95 shadow-[0_15px_30px_rgba(255,92,0,0.3)] cursor-pointer text-sm"
-              >
-                Connect Google Account
-              </button>
-              <div className="flex flex-col gap-2 pt-4">
-                <a 
-                  href="https://ai.google.dev/gemini-api/docs/billing" 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="text-[10px] font-black text-white/40 uppercase tracking-[0.3em] hover:text-white transition-colors"
-                >
-                  Project Setup Guide ↗
-                </a>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       {(showZipModal || showMergeModal) && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-3xl text-center">
@@ -458,7 +385,7 @@ const ScriptGenerator: React.FC = () => {
                           }`}
                         >
                           {previewingVoiceId === voice.id ? (
-                            <div className="w-4 h-4 border-2 border-black/20 border-t-black rounded-full animate-spin"></div>
+                            <div className="w-4 h-4 border-2 border-brand-cyan/20 border-t-brand-cyan rounded-full animate-spin"></div>
                           ) : (
                             <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z"/></svg>
                           )}
@@ -488,13 +415,6 @@ const ScriptGenerator: React.FC = () => {
               </div>
 
               <div className="pt-8 border-t border-white/10 space-y-4">
-                <button 
-                  onClick={() => fileInputRef.current?.click()}
-                  className="w-full py-4 glass-panel text-brand-cyan font-black text-[11px] uppercase tracking-widest rounded-xl hover:bg-brand-cyan/10 transition-all border-brand-cyan/30 flex items-center justify-center gap-3 cursor-pointer"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
-                  SYNC LOCAL DRIVE
-                </button>
                 {parts.length > 0 && (
                   <>
                     <button onClick={() => setShowZipModal(true)} disabled={!parts.some(p => p.status === 'done')} className="w-full py-4 btn-liquid text-white font-black text-[11px] uppercase tracking-widest rounded-xl disabled:opacity-30 cursor-pointer">BATCH ZIP</button>

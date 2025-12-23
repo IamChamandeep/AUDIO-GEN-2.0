@@ -1,23 +1,19 @@
 
-export const STORY_TITLE = "CHAMANDEEP - Script & Audio Generator";
+export const STORY_TITLE = "ARJUN - Script & Audio Generator";
 export const STORY_DESCRIPTION = "Professional AI Narrator for long-form scripts. Optimized for bulk generation and script fidelity.";
 
 export const STORY_CONTENT = [
   { 
     id: 1, 
-    text: "एक समय की बात है, एक बहुत ही सुंदर गाँव में चमनदीप नाम का एक लड़का रहता था। वह अपनी बुद्धिमानी के लिए प्रसिद्ध था।" 
+    text: "गाँव में अर्जुन नाम का लड़का रहता था। वह बहुत बुद्धिमान था।" 
   },
   { 
     id: 2, 
-    text: "वह बहुत बुद्धिमान और दयालु था। वह हमेशा दूसरों की मदद करने के लिए तैयार रहता था, चाहे वह इंसान हो या जानवर।" 
+    text: "उसने एक पुरानी किताब खोजी। वह किताब जादुई थी।" 
   },
   { 
     id: 3, 
-    text: "एक दिन उसने पुराने पुस्तकालय के कोने में एक जादुई किताब देखी, जिसमें कई अनकही कहानियाँ और रहस्य छिपे थे।" 
-  },
-  {
-    id: 4,
-    text: "जैसे ही उसने किताब खोली, पन्ने अपने आप पलटने लगे और एक सुनहरी रोशनी कमरे में फैल गई। चमनदीप समझ गया कि यह कोई साधारण किताब नहीं है।"
+    text: "किताब खोलते ही रोशनी फैल गई। उसे अपना रास्ता मिल गया।" 
   }
 ];
 

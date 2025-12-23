@@ -33,8 +33,15 @@ export const generateStorySpeech = async (
   expressiveness: number = 5,
   onProgress?: (progress: number) => void
 ) => {
-  // Create a new instance right before making an API call to ensure it uses the up-to-date key
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  // Check for admin key first, then fallback to bridge key
+  const adminKey = localStorage.getItem('admin_api_key');
+  const activeKey = adminKey || process.env.API_KEY;
+
+  if (!activeKey) {
+    throw new Error("API Connection Required. Please connect your account or setup the Admin Key.");
+  }
+
+  const ai = new GoogleGenAI({ apiKey: activeKey });
   
   const textChunks = chunkText(text, 400); 
   const audioBuffers: AudioBuffer[] = [];
@@ -81,9 +88,8 @@ export const generateStorySpeech = async (
         attempts++;
         const errorMsg = error.toString();
         
-        // Reset key selection if specifically requested by an error
         if (errorMsg.includes("Requested entity was not found.") || errorMsg.includes("API_KEY_INVALID")) {
-           throw new Error("API Connection Failed. Please re-select your Cloud Project.");
+           throw new Error("API Connection Failed. Please ensure your key is valid.");
         }
 
         if (attempts >= maxAttempts) throw new Error(`Generation error: ${errorMsg}`);
