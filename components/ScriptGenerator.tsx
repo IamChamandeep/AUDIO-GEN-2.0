@@ -17,7 +17,9 @@ interface GeneratedPart {
 }
 
 const ScriptGenerator: React.FC = () => {
-  const [script, setScript] = useState('रात के तीन बजे थे। पूरी दुनिया सो रही थी, लेकिन चमनदीप की आँखों में नींद नहीं थी। वह अपनी अगली बड़ी कहानी की तलाश में था...');
+  const defaultStory = 'रात के तीन बजे थे। पूरी दुनिया सो रही थी, लेकिन चमनदीप की आँखों में नींद नहीं थी। वह अपनी अगली बड़ी कहानी की तलाश में था, एक ऐसी कहानी जो समय की सीमाओं को लांघ सके। अचानक, उसके कमरे के सन्नाटे को एक पुरानी किताब के पन्नों के पलटने की आवाज़ ने तोड़ा... वह किताब जो उसने बरसों पहले एक सुनसान पुस्तकालय के कोने में छोड़ दी थी।';
+  
+  const [script, setScript] = useState(defaultStory);
   const [selectedVoice, setSelectedVoice] = useState(AVAILABLE_VOICES[0].id);
   const [speed, setSpeed] = useState(1.0);
   const [expressiveness, setExpressiveness] = useState(5);
@@ -73,7 +75,6 @@ const ScriptGenerator: React.FC = () => {
       const content = event.target?.result;
       if (typeof content === 'string') {
         setScript(content);
-        // Clear parts if script changes significantly
         setParts([]);
       }
     };
@@ -155,7 +156,6 @@ const ScriptGenerator: React.FC = () => {
     if (aiStudio && typeof aiStudio.openSelectKey === 'function') {
       await aiStudio.openSelectKey();
     } else {
-      // Direct call to setup or just let the Header handle it
       const headerBtn = document.querySelector('header button') as HTMLButtonElement;
       headerBtn?.click();
     }
@@ -325,8 +325,8 @@ const ScriptGenerator: React.FC = () => {
                 className="bg-white/10 border border-white/30 w-full px-6 py-4 text-white rounded-2xl outline-none focus:border-brand-orange transition-all text-xl font-bold text-center"
               />
               <div className="flex gap-4">
-                <button onClick={() => {setShowZipModal(false); setShowMergeModal(false);}} className="flex-1 py-4 btn-liquid text-white font-black rounded-2xl text-[12px] uppercase tracking-widest">CANCEL</button>
-                <button onClick={showZipModal ? triggerZipDownload : triggerMergeDownload} className="flex-1 py-4 btn-primary text-black font-black uppercase tracking-widest text-[12px] rounded-2xl">DOWNLOAD</button>
+                <button onClick={() => {setShowZipModal(false); setShowMergeModal(false);}} className="flex-1 py-4 btn-liquid text-white font-black rounded-2xl text-[12px] uppercase tracking-widest cursor-pointer">CANCEL</button>
+                <button onClick={showZipModal ? triggerZipDownload : triggerMergeDownload} className="flex-1 py-4 btn-primary text-black font-black uppercase tracking-widest text-[12px] rounded-2xl cursor-pointer">DOWNLOAD</button>
               </div>
             </div>
           </div>
@@ -351,10 +351,10 @@ const ScriptGenerator: React.FC = () => {
               <div className="flex items-center gap-4">
                  <button 
                   onClick={() => fileInputRef.current?.click()}
-                  className="hidden md:flex items-center gap-2 text-[10px] font-black text-white/40 uppercase tracking-widest hover:text-brand-cyan transition-colors"
+                  className="hidden md:flex items-center gap-2 text-[10px] font-black text-white/40 uppercase tracking-widest hover:text-brand-cyan transition-colors cursor-pointer"
                  >
                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
-                   IMPORT FROM DRIVE/DEVICE
+                   IMPORT FROM DEVICE
                  </button>
                  <span className="text-[10px] md:text-[12px] font-black text-white uppercase tracking-widest bg-brand-cyan/20 px-4 md:px-5 py-2 rounded-full border border-brand-cyan/40 backdrop-blur-md">{totalWordCount.toLocaleString()} WORDS</span>
               </div>
@@ -453,10 +453,10 @@ const ScriptGenerator: React.FC = () => {
               <div className="pt-8 border-t border-white/10 space-y-4">
                 <button 
                   onClick={() => fileInputRef.current?.click()}
-                  className="w-full py-4 glass-panel text-brand-cyan font-black text-[11px] uppercase tracking-widest rounded-xl hover:bg-brand-cyan/10 transition-all border-brand-cyan/30 flex items-center justify-center gap-3"
+                  className="w-full py-4 glass-panel text-brand-cyan font-black text-[11px] uppercase tracking-widest rounded-xl hover:bg-brand-cyan/10 transition-all border-brand-cyan/30 flex items-center justify-center gap-3 cursor-pointer"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
-                  SYNC CLOUD DRIVE
+                  SYNC LOCAL DRIVE
                 </button>
                 {parts.length > 0 && (
                   <>
@@ -490,7 +490,7 @@ const ScriptGenerator: React.FC = () => {
           <h4 className="text-4xl font-black text-white uppercase tracking-tighter mb-12 text-glow-cyan">NARRATION QUEUE</h4>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {parts.map((p, idx) => (
-              <div key={p.id} className={`p-8 rounded-[2.5rem] liquid-card transition-all duration-500 border shadow-xl relative overflow-hidden ${currentlyPlayingId === p.id ? 'border-brand-cyan' : p.status === 'error' ? 'border-red-500/50 bg-red-500/5' : 'border-white/10'}`}>
+              <div key={p.id} className={`p-8 rounded-[2.5rem] liquid-card transition-all duration-500 border shadow-xl relative overflow-hidden ${currentlyPlayingId === p.id ? 'border-brand-cyan bg-brand-cyan/5' : p.status === 'error' ? 'border-red-500/50 bg-red-500/5' : 'border-white/10'}`}>
                 <div className="flex justify-between items-center mb-8">
                   <div className="flex items-center gap-4">
                     <span className={`w-10 h-10 rounded-xl border flex items-center justify-center text-sm font-black ${p.status === 'done' ? 'bg-brand-orange text-black border-brand-orange' : p.status === 'error' ? 'bg-red-500 text-white border-red-500' : 'text-white/40 border-white/20'}`}>{p.id}</span>
@@ -525,14 +525,14 @@ const ScriptGenerator: React.FC = () => {
                       <span>{Math.round(p.currentProgress || 0)}%</span>
                     </div>
                     <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
-                       <div className="h-full bg-brand-cyan transition-all duration-300" style={{ width: `${p.currentProgress || 0}%` }}></div>
+                       <div className="h-full bg-brand-cyan transition-all duration-300 shadow-[0_0_10px_#00F0FF]" style={{ width: `${p.currentProgress || 0}%` }}></div>
                     </div>
                   </div>
                 )}
                 {p.status === 'done' && (
                    <div className="mt-4 flex items-center gap-3">
-                      <div className="h-1 flex-grow bg-white/10 rounded-full overflow-hidden">
-                         <div className={`h-full bg-brand-cyan w-full ${currentlyPlayingId === p.id ? 'animate-[shimmer_1s_infinite]' : 'animate-pulse'} shadow-[0_0_10px_#00F0FF]`}></div>
+                      <div className="h-1 flex-grow bg-white/10 rounded-full overflow-hidden relative">
+                         <div className={`h-full bg-brand-cyan w-full ${currentlyPlayingId === p.id ? 'animate-[shimmer_1s_infinite]' : 'opacity-40'} shadow-[0_0_10px_#00F0FF]`}></div>
                       </div>
                       <span className="text-[10px] font-black text-brand-cyan uppercase tracking-widest">{currentlyPlayingId === p.id ? 'PLAYING' : 'READY'}</span>
                    </div>
@@ -542,7 +542,7 @@ const ScriptGenerator: React.FC = () => {
                     <p className="text-[9px] font-black text-red-500 uppercase mb-1">ERROR:</p>
                     <p className="text-[10px] font-bold text-red-400 leading-tight mb-3">{p.error}</p>
                     {p.error.includes("Authentication") && (
-                       <button onClick={handleConnect} className="w-full py-2 bg-brand-orange text-black text-[9px] font-black uppercase rounded-lg cursor-pointer">Reconnect Now</button>
+                       <button onClick={handleConnect} className="w-full py-2 bg-brand-orange text-black text-[9px] font-black uppercase rounded-lg cursor-pointer font-black">Reconnect Now</button>
                     )}
                   </div>
                 )}

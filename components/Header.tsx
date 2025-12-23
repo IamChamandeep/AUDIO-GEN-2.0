@@ -4,25 +4,32 @@ import React, { useState, useEffect } from 'react';
 const Header: React.FC = () => {
   const [isConnected, setIsConnected] = useState<boolean>(false);
   const [showStatus, setShowStatus] = useState<boolean>(false);
+  const [isVercelMode, setIsVercelMode] = useState<boolean>(false);
 
   const checkStatus = async () => {
     const aiStudio = (window as any).aistudio;
-    // 1. Check bridge if it exists
+    
+    // 1. Check for AI Studio Bridge
     if (aiStudio && typeof aiStudio.hasSelectedApiKey === 'function') {
       try {
         const hasKey = await aiStudio.hasSelectedApiKey();
-        setIsConnected(hasKey);
-        return;
+        if (hasKey) {
+          setIsConnected(true);
+          setIsVercelMode(false);
+          return;
+        }
       } catch (e) {
         console.warn("Bridge status check failed", e);
       }
     }
     
-    // 2. Fallback: If no bridge, check if environment key exists (Vercel/Local)
+    // 2. Fallback: Check for Environment Key (Vercel/Local)
     if (process.env.API_KEY && process.env.API_KEY !== "") {
       setIsConnected(true);
+      setIsVercelMode(true);
     } else {
       setIsConnected(false);
+      setIsVercelMode(false);
     }
   };
 
@@ -35,7 +42,6 @@ const Header: React.FC = () => {
   const handleConnect = async () => {
     const aiStudio = (window as any).aistudio;
     
-    // If bridge exists, use it
     if (aiStudio && typeof aiStudio.openSelectKey === 'function') {
       try {
         await aiStudio.openSelectKey();
@@ -44,7 +50,6 @@ const Header: React.FC = () => {
         console.error("Connection Error:", e);
       }
     } else {
-      // If bridge is missing (e.g. Vercel), provide a non-intrusive status toggle
       setShowStatus(true);
       setTimeout(() => setShowStatus(false), 5000);
     }
@@ -61,7 +66,9 @@ const Header: React.FC = () => {
             <h1 className="text-[10px] md:text-sm font-black tracking-[0.4em] text-white uppercase leading-none">
               CHAMANDEEP AI
             </h1>
-            <span className="text-[7px] md:text-[8px] font-bold text-white/40 uppercase tracking-[0.2em] mt-1.5">Free Studio Mode</span>
+            <span className="text-[7px] md:text-[8px] font-bold text-white/40 uppercase tracking-[0.2em] mt-1.5">
+              {isVercelMode ? 'Vercel Cloud Mode' : 'Free Studio Mode'}
+            </span>
           </div>
         </div>
         
@@ -70,8 +77,8 @@ const Header: React.FC = () => {
             <div className="absolute top-[120%] right-0 mt-2 glass-panel p-4 rounded-2xl border-brand-orange/40 bg-brand-orange/10 animate-in fade-in slide-in-from-top-2">
               <p className="text-[10px] font-black text-white uppercase tracking-widest leading-relaxed">
                 {isConnected 
-                  ? "SYSTEM CONNECTED VIA VERCEL API_KEY" 
-                  : "BRIDGE NOT DETECTED. PLEASE ENSURE API_KEY IS SET IN VERCEL DASHBOARD."}
+                  ? "SYSTEM ACTIVE VIA CLOUD KEY" 
+                  : "BRIDGE NOT DETECTED. PLEASE ENSURE API_KEY IS SET IN DASHBOARD."}
               </p>
             </div>
           )}
