@@ -41,15 +41,26 @@ const ScriptGenerator: React.FC = () => {
   const audioContextRef = useRef<AudioContext | null>(null);
   const sourceNodeRef = useRef<AudioBufferSourceNode | null>(null);
 
-  useEffect(() => {
-    const checkKey = async () => {
-      const aiStudio = (window as any).aistudio;
-      if (aiStudio && typeof aiStudio.hasSelectedApiKey === 'function') {
-        const hasKey = await aiStudio.hasSelectedApiKey();
+  const checkKeyStatus = async () => {
+    try {
+      // @ts-ignore
+      if (window.aistudio && typeof window.aistudio.hasSelectedApiKey === 'function') {
+        // @ts-ignore
+        const hasKey = await window.aistudio.hasSelectedApiKey();
         setShowConnectModal(!hasKey);
+      } else {
+        // Bridge not yet available, show modal to prompt connection
+        setShowConnectModal(true);
       }
-    };
-    checkKey();
+    } catch (e) {
+      setShowConnectModal(true);
+    }
+  };
+
+  useEffect(() => {
+    checkKeyStatus();
+    const interval = setInterval(checkKeyStatus, 5000);
+    return () => clearInterval(interval);
   }, []);
 
   const totalWordCount = useMemo(() => {
@@ -63,11 +74,17 @@ const ScriptGenerator: React.FC = () => {
   };
 
   const handleConnectCloud = async () => {
-    const aiStudio = (window as any).aistudio;
-    if (aiStudio && typeof aiStudio.openSelectKey === 'function') {
-      await aiStudio.openSelectKey();
-      // Assume success to unblock UI
-      setShowConnectModal(false);
+    try {
+      // @ts-ignore
+      if (window.aistudio && typeof window.aistudio.openSelectKey === 'function') {
+        // @ts-ignore
+        await window.aistudio.openSelectKey();
+        setShowConnectModal(false);
+      } else {
+        alert("AI Studio bridge not detected. Please ensure you're using a compatible browser or environment.");
+      }
+    } catch (e) {
+      console.error("Connection failed", e);
     }
   };
 
@@ -110,7 +127,7 @@ const ScriptGenerator: React.FC = () => {
     } catch (err: any) {
       alert(err.message || "Synthesis failed.");
       setPreviewingVoiceId(null);
-      if (err.message.includes("Connection Failed")) setShowConnectModal(true);
+      if (err.message.includes("Connection Failed") || err.message.includes("API Connection")) setShowConnectModal(true);
     }
   };
 
@@ -193,7 +210,7 @@ const ScriptGenerator: React.FC = () => {
         updatedParts[i].error = err.message;
         setIsProcessing(false);
         setParts([...updatedParts]);
-        if (err.message.includes("Connection Failed")) setShowConnectModal(true);
+        if (err.message.includes("Connection Failed") || err.message.includes("API Connection")) setShowConnectModal(true);
         return; 
       }
       setParts([...updatedParts]);
@@ -225,7 +242,7 @@ const ScriptGenerator: React.FC = () => {
     } catch (err: any) {
       updatedParts[index].status = 'error';
       updatedParts[index].error = err.message;
-      if (err.message.includes("Connection Failed")) setShowConnectModal(true);
+      if (err.message.includes("Connection Failed") || err.message.includes("API Connection")) setShowConnectModal(true);
     }
     setParts([...updatedParts]);
     updateOverallProgress(updatedParts);
@@ -302,7 +319,7 @@ const ScriptGenerator: React.FC = () => {
   useEffect(() => () => stopGlobalAudio(), []);
 
   return (
-    <div className={`max-w-[1300px] mx-auto px-6 pb-40 transition-all duration-700 ${showConnectModal ? 'blur-xl scale-[0.98]' : ''}`}>
+    <div className={`max-w-[1300px] mx-auto px-6 pb-40 transition-all duration-700 ${showConnectModal ? 'blur-2xl scale-[0.97]' : ''}`}>
       <input 
         type="file" 
         ref={fileInputRef} 
@@ -312,31 +329,32 @@ const ScriptGenerator: React.FC = () => {
       />
 
       {showConnectModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/40 backdrop-blur-md">
-          <div className="glass-panel p-12 rounded-[3rem] w-full max-w-xl shadow-[0_0_100px_rgba(255,92,0,0.2)] border border-brand-orange/30 text-center animate-in fade-in zoom-in-95 duration-500">
-            <div className="w-20 h-20 bg-brand-orange text-black rounded-3xl flex items-center justify-center mx-auto mb-10 shadow-2xl">
-              <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg>
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/60 backdrop-blur-sm">
+          <div className="glass-panel p-10 md:p-14 rounded-[3.5rem] w-full max-w-xl shadow-[0_0_120px_rgba(255,92,0,0.25)] border border-brand-orange/40 text-center animate-in fade-in zoom-in-95 duration-500">
+            <div className="w-24 h-24 bg-brand-orange text-black rounded-[2rem] flex items-center justify-center mx-auto mb-12 shadow-[0_20px_40px_rgba(255,92,0,0.4)]">
+              <svg className="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
             </div>
-            <h4 className="text-4xl font-black text-white uppercase mb-4 tracking-tighter text-glow-orange">CLOUD CONNECT</h4>
-            <p className="text-white/60 font-bold uppercase tracking-widest text-[11px] mb-8 leading-relaxed">
-              To use the FREE narration engine, connect your Google Cloud project.<br/>
-              No payment is required for the free tier.
+            <h4 className="text-4xl md:text-5xl font-black text-white uppercase mb-6 tracking-tighter text-glow-orange leading-tight">MANDATORY CLOUD CONNECT</h4>
+            <p className="text-white/70 font-bold uppercase tracking-widest text-[11px] md:text-[13px] mb-10 leading-relaxed max-w-sm mx-auto">
+              Setup is required to use the free tier narration engine. Connect your account to create a free API project.
             </p>
-            <div className="space-y-4">
+            <div className="space-y-5">
               <button 
                 onClick={handleConnectCloud} 
-                className="w-full py-5 bg-brand-orange text-black font-black uppercase tracking-[0.2em] rounded-2xl transform transition-all hover:scale-105 active:scale-95 shadow-2xl cursor-pointer"
+                className="w-full py-6 bg-brand-orange text-black font-black uppercase tracking-[0.2em] rounded-2xl transform transition-all hover:scale-105 active:scale-95 shadow-[0_15px_30px_rgba(255,92,0,0.3)] cursor-pointer text-sm"
               >
-                CONNECT PROJECT
+                Connect Google Account
               </button>
-              <a 
-                href="https://ai.google.dev/gemini-api/docs/billing" 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="block text-[10px] font-black text-white/30 uppercase tracking-[0.3em] hover:text-white transition-colors"
-              >
-                Learn how to get a Free Key ↗
-              </a>
+              <div className="flex flex-col gap-2 pt-4">
+                <a 
+                  href="https://ai.google.dev/gemini-api/docs/billing" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-[10px] font-black text-white/40 uppercase tracking-[0.3em] hover:text-white transition-colors"
+                >
+                  Project Setup Guide ↗
+                </a>
+              </div>
             </div>
           </div>
         </div>
@@ -528,7 +546,7 @@ const ScriptGenerator: React.FC = () => {
                     )}
                     {p.status === 'error' && (
                       <button onClick={() => retryPart(idx)} className="w-12 h-12 bg-red-500/20 text-red-500 border border-red-500/50 rounded-full flex items-center justify-center hover:bg-red-500 hover:text-white transition-all shadow-lg cursor-pointer">
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357-2H15"/></svg>
                       </button>
                     )}
                   </div>

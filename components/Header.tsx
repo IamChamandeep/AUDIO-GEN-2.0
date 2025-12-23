@@ -2,40 +2,42 @@
 import React, { useState, useEffect } from 'react';
 
 const Header: React.FC = () => {
-  const [isConnected, setIsConnected] = useState<boolean>(true);
-  const [hasBridge, setHasBridge] = useState<boolean>(false);
+  const [isConnected, setIsConnected] = useState<boolean>(false);
+
+  const checkStatus = async () => {
+    try {
+      // @ts-ignore
+      if (window.aistudio && typeof window.aistudio.hasSelectedApiKey === 'function') {
+        // @ts-ignore
+        const hasKey = await window.aistudio.hasSelectedApiKey();
+        setIsConnected(hasKey);
+      } else {
+        // If bridge is not detected yet, we don't assume connected
+        setIsConnected(false);
+      }
+    } catch (e) {
+      setIsConnected(false);
+    }
+  };
 
   useEffect(() => {
-    const checkStatus = async () => {
-      const aiStudio = (window as any).aistudio;
-      if (aiStudio && typeof aiStudio.hasSelectedApiKey === 'function') {
-        setHasBridge(true);
-        try {
-          const hasKey = await aiStudio.hasSelectedApiKey();
-          setIsConnected(hasKey);
-        } catch (e) {
-          setIsConnected(false);
-        }
-      } else {
-        setHasBridge(false);
-        setIsConnected(true);
-      }
-    };
-
     checkStatus();
-    const interval = setInterval(checkStatus, 5000);
+    const interval = setInterval(checkStatus, 3000);
     return () => clearInterval(interval);
   }, []);
 
   const handleConnect = async () => {
-    const aiStudio = (window as any).aistudio;
-    if (aiStudio && typeof aiStudio.openSelectKey === 'function') {
-      try {
-        await aiStudio.openSelectKey();
+    try {
+      // @ts-ignore
+      if (window.aistudio && typeof window.aistudio.openSelectKey === 'function') {
+        // @ts-ignore
+        await window.aistudio.openSelectKey();
         setIsConnected(true);
-      } catch (e) {
-        console.error("Connection Error:", e);
+      } else {
+        console.warn("AI Studio bridge not found. Ensure you are in a supported environment.");
       }
+    } catch (e) {
+      console.error("Connection Error:", e);
     }
   };
 
@@ -51,24 +53,24 @@ const Header: React.FC = () => {
               CHAMANDEEP AI
             </h1>
             <span className="text-[7px] md:text-[8px] font-bold text-white/40 uppercase tracking-[0.2em] mt-1.5">
-              {isConnected ? 'Project Integrated' : 'Cloud Setup Pending'}
+              {isConnected ? 'Project Integrated' : 'Cloud Setup Required'}
             </span>
           </div>
         </div>
         
         <div className="flex items-center gap-4 md:gap-12">
-          {hasBridge && !isConnected ? (
+          {!isConnected ? (
             <button 
               onClick={handleConnect}
-              className="text-[9px] font-black uppercase tracking-[0.2em] px-6 py-2.5 rounded-full border border-brand-orange text-brand-orange bg-brand-orange/5 hover:bg-brand-orange hover:text-black transition-all animate-pulse cursor-pointer shadow-[0_0_15px_rgba(255,92,0,0.2)]"
+              className="text-[9px] font-black uppercase tracking-[0.2em] px-6 py-2.5 rounded-full border border-brand-orange text-brand-orange bg-brand-orange/5 hover:bg-brand-orange hover:text-black transition-all animate-pulse cursor-pointer shadow-[0_0_15px_rgba(255,92,0,0.3)]"
             >
-              Link Project
+              Connect Google Account
             </button>
           ) : (
-            <div className={`flex items-center gap-3 px-5 py-2 rounded-full border transition-all ${isConnected ? 'bg-brand-cyan/10 border-brand-cyan/30' : 'bg-brand-orange/10 border-brand-orange/30'}`}>
-              <div className={`w-1.5 h-1.5 rounded-full ${isConnected ? 'bg-brand-cyan shadow-[0_0_8px_#00F0FF]' : 'bg-brand-orange animate-pulse shadow-[0_0_8px_#FF5C00]'}`}></div>
-              <span className={`text-[9px] font-black uppercase tracking-widest ${isConnected ? 'text-brand-cyan' : 'text-brand-orange'}`}>
-                {isConnected ? 'System Ready' : 'Sync Required'}
+            <div className="flex items-center gap-3 px-5 py-2 rounded-full border bg-brand-cyan/10 border-brand-cyan/30">
+              <div className="w-1.5 h-1.5 rounded-full bg-brand-cyan shadow-[0_0_8px_#00F0FF]"></div>
+              <span className="text-[9px] font-black text-brand-cyan uppercase tracking-widest">
+                System Active
               </span>
             </div>
           )}
