@@ -30,7 +30,7 @@ const ScriptGenerator: React.FC = () => {
   const [overallProgress, setOverallProgress] = useState(0);
   const [previewingVoiceId, setPreviewingVoiceId] = useState<string | null>(null);
   const [currentlyPlayingId, setCurrentlyPlayingId] = useState<number | null>(null);
-  const [isConnected, setIsConnected] = useState<boolean>(!!process.env.API_KEY);
+  const [showConnectModal, setShowConnectModal] = useState(false);
 
   const [showZipModal, setShowZipModal] = useState(false);
   const [zipFilename, setZipFilename] = useState('narrations');
@@ -42,18 +42,14 @@ const ScriptGenerator: React.FC = () => {
   const sourceNodeRef = useRef<AudioBufferSourceNode | null>(null);
 
   useEffect(() => {
-    const checkConnection = async () => {
+    const checkKey = async () => {
       const aiStudio = (window as any).aistudio;
       if (aiStudio && typeof aiStudio.hasSelectedApiKey === 'function') {
         const hasKey = await aiStudio.hasSelectedApiKey();
-        setIsConnected(hasKey);
-      } else if (process.env.API_KEY) {
-        setIsConnected(true);
+        setShowConnectModal(!hasKey);
       }
     };
-    checkConnection();
-    const interval = setInterval(checkConnection, 3000);
-    return () => clearInterval(interval);
+    checkKey();
   }, []);
 
   const totalWordCount = useMemo(() => {
@@ -63,6 +59,15 @@ const ScriptGenerator: React.FC = () => {
   const initAudio = () => {
     if (!audioContextRef.current) {
       audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
+    }
+  };
+
+  const handleConnectCloud = async () => {
+    const aiStudio = (window as any).aistudio;
+    if (aiStudio && typeof aiStudio.openSelectKey === 'function') {
+      await aiStudio.openSelectKey();
+      // Assume success to unblock UI
+      setShowConnectModal(false);
     }
   };
 
@@ -103,8 +108,9 @@ const ScriptGenerator: React.FC = () => {
       source.start();
       sourceNodeRef.current = source;
     } catch (err: any) {
-      alert("System not active. Please ensure you have connected your Google Account or set your API key.");
+      alert(err.message || "Synthesis failed.");
       setPreviewingVoiceId(null);
+      if (err.message.includes("Connection Failed")) setShowConnectModal(true);
     }
   };
 
@@ -151,16 +157,6 @@ const ScriptGenerator: React.FC = () => {
     setOverallProgress(completedProgress / total);
   };
 
-  const handleConnect = async () => {
-    const aiStudio = (window as any).aistudio;
-    if (aiStudio && typeof aiStudio.openSelectKey === 'function') {
-      await aiStudio.openSelectKey();
-    } else {
-      const headerBtn = document.querySelector('header button') as HTMLButtonElement;
-      headerBtn?.click();
-    }
-  };
-
   const generateAll = async () => {
     initAudio();
     if (isProcessing) return;
@@ -197,6 +193,7 @@ const ScriptGenerator: React.FC = () => {
         updatedParts[i].error = err.message;
         setIsProcessing(false);
         setParts([...updatedParts]);
+        if (err.message.includes("Connection Failed")) setShowConnectModal(true);
         return; 
       }
       setParts([...updatedParts]);
@@ -228,6 +225,7 @@ const ScriptGenerator: React.FC = () => {
     } catch (err: any) {
       updatedParts[index].status = 'error';
       updatedParts[index].error = err.message;
+      if (err.message.includes("Connection Failed")) setShowConnectModal(true);
     }
     setParts([...updatedParts]);
     updateOverallProgress(updatedParts);
@@ -304,7 +302,7 @@ const ScriptGenerator: React.FC = () => {
   useEffect(() => () => stopGlobalAudio(), []);
 
   return (
-    <div className="max-w-[1300px] mx-auto px-6 pb-40">
+    <div className={`max-w-[1300px] mx-auto px-6 pb-40 transition-all duration-700 ${showConnectModal ? 'blur-xl scale-[0.98]' : ''}`}>
       <input 
         type="file" 
         ref={fileInputRef} 
@@ -312,6 +310,37 @@ const ScriptGenerator: React.FC = () => {
         className="hidden" 
         accept=".txt,.doc,.docx"
       />
+
+      {showConnectModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/40 backdrop-blur-md">
+          <div className="glass-panel p-12 rounded-[3rem] w-full max-w-xl shadow-[0_0_100px_rgba(255,92,0,0.2)] border border-brand-orange/30 text-center animate-in fade-in zoom-in-95 duration-500">
+            <div className="w-20 h-20 bg-brand-orange text-black rounded-3xl flex items-center justify-center mx-auto mb-10 shadow-2xl">
+              <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg>
+            </div>
+            <h4 className="text-4xl font-black text-white uppercase mb-4 tracking-tighter text-glow-orange">CLOUD CONNECT</h4>
+            <p className="text-white/60 font-bold uppercase tracking-widest text-[11px] mb-8 leading-relaxed">
+              To use the FREE narration engine, connect your Google Cloud project.<br/>
+              No payment is required for the free tier.
+            </p>
+            <div className="space-y-4">
+              <button 
+                onClick={handleConnectCloud} 
+                className="w-full py-5 bg-brand-orange text-black font-black uppercase tracking-[0.2em] rounded-2xl transform transition-all hover:scale-105 active:scale-95 shadow-2xl cursor-pointer"
+              >
+                CONNECT PROJECT
+              </button>
+              <a 
+                href="https://ai.google.dev/gemini-api/docs/billing" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="block text-[10px] font-black text-white/30 uppercase tracking-[0.3em] hover:text-white transition-colors"
+              >
+                Learn how to get a Free Key ↗
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
 
       {(showZipModal || showMergeModal) && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-3xl text-center">
@@ -330,16 +359,6 @@ const ScriptGenerator: React.FC = () => {
               </div>
             </div>
           </div>
-        </div>
-      )}
-
-      {!isConnected && (
-        <div className="mb-12 glass-panel border-brand-orange/40 bg-brand-orange/5 p-8 rounded-[2rem] text-center flex flex-col md:flex-row items-center justify-between gap-6 animate-pulse">
-          <div className="text-left">
-            <h4 className="text-xl font-black text-brand-orange uppercase mb-1">Account Connection Required</h4>
-            <p className="text-white/60 text-sm font-bold uppercase tracking-widest">Connect your Google Account to use the narration engine.</p>
-          </div>
-          <button onClick={handleConnect} className="px-12 py-5 bg-brand-orange text-black font-black uppercase tracking-[0.2em] rounded-2xl transform transition-all hover:scale-105 active:scale-95 shadow-2xl cursor-pointer">Connect Now</button>
         </div>
       )}
 
@@ -541,9 +560,6 @@ const ScriptGenerator: React.FC = () => {
                   <div className="mt-4 p-4 rounded-xl bg-red-500/10 border border-red-500/20">
                     <p className="text-[9px] font-black text-red-500 uppercase mb-1">ERROR:</p>
                     <p className="text-[10px] font-bold text-red-400 leading-tight mb-3">{p.error}</p>
-                    {p.error.includes("Authentication") && (
-                       <button onClick={handleConnect} className="w-full py-2 bg-brand-orange text-black text-[9px] font-black uppercase rounded-lg cursor-pointer font-black">Reconnect Now</button>
-                    )}
                   </div>
                 )}
               </div>

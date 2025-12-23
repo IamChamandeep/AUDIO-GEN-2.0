@@ -2,46 +2,33 @@
 import React, { useState, useEffect } from 'react';
 
 const Header: React.FC = () => {
-  const [isConnected, setIsConnected] = useState<boolean>(false);
-  const [showStatus, setShowStatus] = useState<boolean>(false);
-  const [isVercelMode, setIsVercelMode] = useState<boolean>(false);
-
-  const checkStatus = async () => {
-    const aiStudio = (window as any).aistudio;
-    
-    // 1. Check for AI Studio Bridge
-    if (aiStudio && typeof aiStudio.hasSelectedApiKey === 'function') {
-      try {
-        const hasKey = await aiStudio.hasSelectedApiKey();
-        if (hasKey) {
-          setIsConnected(true);
-          setIsVercelMode(false);
-          return;
-        }
-      } catch (e) {
-        console.warn("Bridge status check failed", e);
-      }
-    }
-    
-    // 2. Fallback: Check for Environment Key (Vercel/Local)
-    if (process.env.API_KEY && process.env.API_KEY !== "") {
-      setIsConnected(true);
-      setIsVercelMode(true);
-    } else {
-      setIsConnected(false);
-      setIsVercelMode(false);
-    }
-  };
+  const [isConnected, setIsConnected] = useState<boolean>(true);
+  const [hasBridge, setHasBridge] = useState<boolean>(false);
 
   useEffect(() => {
+    const checkStatus = async () => {
+      const aiStudio = (window as any).aistudio;
+      if (aiStudio && typeof aiStudio.hasSelectedApiKey === 'function') {
+        setHasBridge(true);
+        try {
+          const hasKey = await aiStudio.hasSelectedApiKey();
+          setIsConnected(hasKey);
+        } catch (e) {
+          setIsConnected(false);
+        }
+      } else {
+        setHasBridge(false);
+        setIsConnected(true);
+      }
+    };
+
     checkStatus();
-    const interval = setInterval(checkStatus, 3000);
+    const interval = setInterval(checkStatus, 5000);
     return () => clearInterval(interval);
   }, []);
 
   const handleConnect = async () => {
     const aiStudio = (window as any).aistudio;
-    
     if (aiStudio && typeof aiStudio.openSelectKey === 'function') {
       try {
         await aiStudio.openSelectKey();
@@ -49,15 +36,12 @@ const Header: React.FC = () => {
       } catch (e) {
         console.error("Connection Error:", e);
       }
-    } else {
-      setShowStatus(true);
-      setTimeout(() => setShowStatus(false), 5000);
     }
   };
 
   return (
     <header className="fixed top-0 left-0 right-0 z-[60] py-6 px-4 md:px-10">
-      <div className="max-w-[1500px] mx-auto flex items-center justify-between glass-panel px-6 md:px-12 py-5 rounded-[1.5rem] border-white/20 relative">
+      <div className="max-w-[1500px] mx-auto flex items-center justify-between glass-panel px-6 md:px-12 py-5 rounded-[1.5rem] border-white/20">
         <div className="flex items-center gap-4 md:gap-6">
           <div className="w-10 h-10 bg-white text-black rounded-xl flex items-center justify-center font-black italic text-xl shadow-2xl">
             C
@@ -67,34 +51,27 @@ const Header: React.FC = () => {
               CHAMANDEEP AI
             </h1>
             <span className="text-[7px] md:text-[8px] font-bold text-white/40 uppercase tracking-[0.2em] mt-1.5">
-              {isVercelMode ? 'Vercel Cloud Mode' : 'Free Studio Mode'}
+              {isConnected ? 'Project Integrated' : 'Cloud Setup Pending'}
             </span>
           </div>
         </div>
         
         <div className="flex items-center gap-4 md:gap-12">
-          {showStatus && (
-            <div className="absolute top-[120%] right-0 mt-2 glass-panel p-4 rounded-2xl border-brand-orange/40 bg-brand-orange/10 animate-in fade-in slide-in-from-top-2">
-              <p className="text-[10px] font-black text-white uppercase tracking-widest leading-relaxed">
-                {isConnected 
-                  ? "SYSTEM ACTIVE VIA CLOUD KEY" 
-                  : "BRIDGE NOT DETECTED. PLEASE ENSURE API_KEY IS SET IN DASHBOARD."}
-              </p>
+          {hasBridge && !isConnected ? (
+            <button 
+              onClick={handleConnect}
+              className="text-[9px] font-black uppercase tracking-[0.2em] px-6 py-2.5 rounded-full border border-brand-orange text-brand-orange bg-brand-orange/5 hover:bg-brand-orange hover:text-black transition-all animate-pulse cursor-pointer shadow-[0_0_15px_rgba(255,92,0,0.2)]"
+            >
+              Link Project
+            </button>
+          ) : (
+            <div className={`flex items-center gap-3 px-5 py-2 rounded-full border transition-all ${isConnected ? 'bg-brand-cyan/10 border-brand-cyan/30' : 'bg-brand-orange/10 border-brand-orange/30'}`}>
+              <div className={`w-1.5 h-1.5 rounded-full ${isConnected ? 'bg-brand-cyan shadow-[0_0_8px_#00F0FF]' : 'bg-brand-orange animate-pulse shadow-[0_0_8px_#FF5C00]'}`}></div>
+              <span className={`text-[9px] font-black uppercase tracking-widest ${isConnected ? 'text-brand-cyan' : 'text-brand-orange'}`}>
+                {isConnected ? 'System Ready' : 'Sync Required'}
+              </span>
             </div>
           )}
-
-          <button 
-            onClick={handleConnect}
-            className={`group text-[9px] font-black uppercase tracking-[0.2em] px-4 md:px-6 py-2.5 rounded-full border transition-all flex items-center gap-2 md:gap-3 cursor-pointer ${
-              isConnected 
-              ? 'border-brand-cyan/40 text-brand-cyan bg-brand-cyan/5 hover:bg-brand-cyan/10 shadow-[0_0_15px_rgba(0,240,255,0.1)]' 
-              : 'border-brand-orange text-brand-orange bg-brand-orange/5 hover:bg-brand-orange hover:text-black animate-pulse'
-            }`}
-          >
-            <div className={`w-1.5 h-1.5 md:w-2 md:h-2 rounded-full ${isConnected ? 'bg-brand-cyan shadow-[0_0_10px_#00F0FF]' : 'bg-brand-orange shadow-[0_0_10px_#FF5C00]'}`}></div>
-            <span className="hidden xs:inline">{isConnected ? 'SYSTEM ACTIVE' : 'CONNECT ACCOUNT'}</span>
-            <span className="xs:hidden">{isConnected ? 'ACTIVE' : 'CONNECT'}</span>
-          </button>
 
           <a 
             href="https://www.instagram.com/iamchamandeep/" 

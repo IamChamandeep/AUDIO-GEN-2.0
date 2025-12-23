@@ -33,13 +33,9 @@ export const generateStorySpeech = async (
   expressiveness: number = 5,
   onProgress?: (progress: number) => void
 ) => {
-  const apiKey = process.env.API_KEY;
+  // Create a new instance right before making an API call to ensure it uses the up-to-date key
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   
-  if (!apiKey) {
-    throw new Error("API Key not found in environment. Please ensure you are logged into your Google account.");
-  }
-
-  const ai = new GoogleGenAI({ apiKey });
   const textChunks = chunkText(text, 400); 
   const audioBuffers: AudioBuffer[] = [];
   
@@ -85,9 +81,9 @@ export const generateStorySpeech = async (
         attempts++;
         const errorMsg = error.toString();
         
-        // Only trigger account selection if specifically requested by an error, don't force it upfront
-        if (errorMsg.includes("Requested entity was not found") || errorMsg.includes("API_KEY_INVALID")) {
-           throw new Error("Authentication error. Please use the 'Switch Account' button in the top right.");
+        // Reset key selection if specifically requested by an error
+        if (errorMsg.includes("Requested entity was not found.") || errorMsg.includes("API_KEY_INVALID")) {
+           throw new Error("API Connection Failed. Please re-select your Cloud Project.");
         }
 
         if (attempts >= maxAttempts) throw new Error(`Generation error: ${errorMsg}`);
