@@ -17,7 +17,7 @@ interface GeneratedPart {
 }
 
 const ScriptGenerator: React.FC = () => {
-  const [script, setScript] = useState('');
+  const [script, setScript] = useState('रात के तीन बजे थे। पूरी दुनिया सो रही थी, लेकिन चमनदीप की आँखों में नींद नहीं थी। वह अपनी अगली बड़ी कहानी की तलाश में था...');
   const [selectedVoice, setSelectedVoice] = useState(AVAILABLE_VOICES[0].id);
   const [speed, setSpeed] = useState(1.0);
   const [expressiveness, setExpressiveness] = useState(5);
@@ -48,7 +48,7 @@ const ScriptGenerator: React.FC = () => {
   };
 
   const playVoicePreview = async (voiceId: string, e: React.MouseEvent) => {
-    e.stopPropagation(); // Prevent selecting the card if just clicking play
+    e.stopPropagation();
     initAudio();
     if (previewingVoiceId) return;
     
@@ -69,7 +69,7 @@ const ScriptGenerator: React.FC = () => {
       source.start();
       sourceNodeRef.current = source;
     } catch (err: any) {
-      alert("Preview Error: " + (err.message || "Unknown error"));
+      alert("Please ensure your Google Account is connected (Check top-right button). Error: " + (err.message || "Unknown error"));
       setPreviewingVoiceId(null);
     }
   };
@@ -115,6 +115,13 @@ const ScriptGenerator: React.FC = () => {
     if (total === 0) return;
     const completedProgress = allParts.reduce((acc, p) => acc + (p.status === 'done' ? 100 : (p.currentProgress || 0)), 0);
     setOverallProgress(completedProgress / total);
+  };
+
+  const handleConnect = async () => {
+    const aiStudio = (window as any).aistudio;
+    if (aiStudio && typeof aiStudio.openSelectKey === 'function') {
+      await aiStudio.openSelectKey();
+    }
   };
 
   const generateAll = async () => {
@@ -281,13 +288,23 @@ const ScriptGenerator: React.FC = () => {
         </div>
       )}
 
+      {!process.env.API_KEY && (
+        <div className="mb-12 glass-panel border-brand-orange/40 bg-brand-orange/5 p-8 rounded-[2rem] text-center flex flex-col md:flex-row items-center justify-between gap-6 animate-pulse">
+          <div className="text-left">
+            <h4 className="text-xl font-black text-brand-orange uppercase mb-1">Account Connection Required</h4>
+            <p className="text-white/60 text-sm font-bold uppercase tracking-widest">Connect your Google Account to use the narration engine.</p>
+          </div>
+          <button onClick={handleConnect} className="px-12 py-5 bg-brand-orange text-black font-black uppercase tracking-[0.2em] rounded-2xl transform transition-all hover:scale-105 active:scale-95 shadow-2xl">Connect Now</button>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         <div className="lg:col-span-8 space-y-8">
           <div className="glass-panel rounded-[2.5rem] p-10 relative overflow-hidden group">
             <div className="flex justify-between items-center mb-8">
-              <h3 className="text-3xl font-black text-brand-cyan uppercase tracking-[0.2em] flex items-center gap-4 text-glow-cyan">STORY SCRIPT</h3>
+              <h3 className="text-2xl md:text-3xl font-black text-brand-cyan uppercase tracking-[0.2em] flex items-center gap-4 text-glow-cyan">STORY SCRIPT</h3>
               <div className="flex items-center gap-4">
-                 <span className="text-[12px] font-black text-white uppercase tracking-widest bg-brand-cyan/20 px-5 py-2 rounded-full border border-brand-cyan/40 backdrop-blur-md">{totalWordCount.toLocaleString()} WORDS</span>
+                 <span className="text-[10px] md:text-[12px] font-black text-white uppercase tracking-widest bg-brand-cyan/20 px-4 md:px-5 py-2 rounded-full border border-brand-cyan/40 backdrop-blur-md">{totalWordCount.toLocaleString()} WORDS</span>
               </div>
             </div>
             
@@ -295,15 +312,15 @@ const ScriptGenerator: React.FC = () => {
               value={script}
               onChange={(e) => setScript(e.target.value)}
               placeholder="PASTE YOUR STORY SCRIPT HERE..."
-              className="w-full h-[450px] bg-transparent border-none p-0 text-white/80 focus:outline-none transition-all resize-none text-base leading-relaxed font-['Noto_Serif_Devanagari']"
+              className="w-full h-[450px] bg-transparent border-none p-0 text-white/80 focus:outline-none transition-all resize-none text-base md:text-xl leading-relaxed font-['Noto_Serif_Devanagari']"
             />
             
-            <div className="mt-10 flex items-center gap-6">
-               <button onClick={processScript} className="px-10 py-5 btn-liquid text-white font-black rounded-2xl text-[12px] uppercase tracking-widest">PREPARE {parts.length > 0 ? `(${parts.length})` : ''}</button>
+            <div className="mt-10 flex flex-col md:flex-row items-center gap-6">
+               <button onClick={processScript} className="w-full md:w-auto px-10 py-5 btn-liquid text-white font-black rounded-2xl text-[12px] uppercase tracking-widest">PREPARE {parts.length > 0 ? `(${parts.length})` : ''}</button>
                <button 
                 onClick={generateAll} 
                 disabled={parts.length === 0 || isProcessing}
-                className="flex-grow py-5 btn-primary disabled:opacity-30 text-black font-black uppercase rounded-2xl text-[13px] tracking-[0.2em]"
+                className="w-full flex-grow py-5 btn-primary disabled:opacity-30 text-black font-black uppercase rounded-2xl text-[13px] tracking-[0.2em]"
               >
                 {isProcessing ? 'SYNTHESIZING...' : 'START NARRATION'}
               </button>
@@ -436,7 +453,7 @@ const ScriptGenerator: React.FC = () => {
                     )}
                   </div>
                 </div>
-                <p className="text-white/60 text-sm font-bold italic leading-relaxed line-clamp-2 mb-6 transition-colors">"{p.text}"</p>
+                <p className="text-white/60 text-sm md:text-base font-bold italic leading-relaxed line-clamp-2 mb-6 transition-colors">"{p.text}"</p>
                 {p.status === 'loading' && (
                   <div className="mt-4 space-y-3">
                     <div className="flex justify-between items-center text-[10px] font-black uppercase text-brand-cyan">
@@ -462,7 +479,10 @@ const ScriptGenerator: React.FC = () => {
                 {p.status === 'error' && p.error && (
                   <div className="mt-4 p-4 rounded-xl bg-red-500/10 border border-red-500/20">
                     <p className="text-[9px] font-black text-red-500 uppercase mb-1">ERROR:</p>
-                    <p className="text-[10px] font-bold text-red-400 leading-tight">{p.error}</p>
+                    <p className="text-[10px] font-bold text-red-400 leading-tight mb-3">{p.error}</p>
+                    {p.error.includes("Authentication") && (
+                       <button onClick={handleConnect} className="w-full py-2 bg-brand-orange text-black text-[9px] font-black uppercase rounded-lg">Reconnect Now</button>
+                    )}
                   </div>
                 )}
               </div>
